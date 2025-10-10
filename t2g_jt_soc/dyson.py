@@ -2,6 +2,7 @@ import numpy as np
 import sparse_ir as ir
 import h5py
 from .ohmatrix import ohmatrix, ohsum, ohcopy, ohzeros
+from .magneto import commGtau, gyrocurrent
 
 
 def ohfit(sampling, M, **kwargs):
@@ -57,6 +58,8 @@ class DysonSolver:
         self.__sebl = np.zeros(self.__irbb.size)
         self.__glocl = ohzeros(self.__irbf.size)
         self.__gkl = ohzeros((self.__irbf.size, sz, sz, sz))
+        self.__flocl = ohzeros(self.__irbf.size) # Residual without electronic interactions
+        self.__fkl = ohzeros((self.__irbf.size, sz, sz, sz))
         self.__dl = 0
         
         
@@ -236,6 +239,30 @@ class DysonSolver:
         return ohevaluate(self.__smatf, self.gkl, axis=0)
     
     @property
+    def flocl(self):
+        return self.__flocl
+    
+    @property
+    def floctau(self):
+        return ohevaluate(self.__stauf, self.flocl)
+    
+    @property
+    def flociw(self):
+        return ohevaluate(self.__smatf, self.flocl)
+    
+    @property
+    def fkl(self):
+        return self.__fkl
+    
+    @property
+    def fktau(self):
+        return ohevaluate(self.__stauf, self.fkl, axis=0)
+    
+    @property
+    def fkiw(self):
+        return ohevaluate(self.__smatf, self.fkl, axis=0)
+    
+    @property
     def dl(self):
         return self.__dl
     
@@ -260,12 +287,17 @@ class DysonSolver:
         while True:
             fprint("Starting with mu=%.8f" % self.mu, out_fl)
             if self.__t != 0:
-                gkiw = (self.freqf[:,None,None,None] - self.Hlatt[None,:,:,:] - self.sehf - self.sephm[None,:,:,:] - 2*self.seepiw[:,None,None,None] + self.mu - 0.5*self.lbd*ohmatrix(0,1) )**-1
+                gkiw = (self.freqf[:,None,None,None] - self.Hlatt[None,:,:,:] - self.sehf - self.se2biw[:,None,None,None] - self.sephm[None,:,:,:] - 2*self.seepiw[:,None,None,None] + self.mu - 0.5*self.lbd*ohmatrix(0,1) )**-1
+                fkiw = (self.freqf[:,None,None,None] - self.Hlatt[None,:,:,:] - self.sephm[None,:,:,:] - 2*self.seepiw[:,None,None,None] + self.mu - 0.5*self.lbd*ohmatrix(0,1) )**-1
                 self.__gkl = ohfit(self.smatf, gkiw, axis=0).real
+                self.__fkl = ohfit(self.smatf, fkiw, axis=0).real
                 glociw = ohsum(gkiw, axis=(1,2,3)) / self.k_sz**3
+                flociw = ohsum(fkiw, axis=(1,2,3)) / self.k_sz**3
             else:
-                glociw = (self.freqf - self.sehf - 2*self.seepiw + self.mu - 0.5*self.lbd*ohmatrix(0,1) )**-1
+                glociw = (self.freqf - self.sehf - self.se2biw - 2*self.seepiw + self.mu - 0.5*self.lbd*ohmatrix(0,1) )**-1
+                flociw = (self.freqf - self.sehf - 2*self.seepiw + self.mu - 0.5*self.lbd*ohmatrix(0,1) )**-1
             self.__glocl = ohfit(self.smatf, glociw).real
+            self.__flocl = ohfit(self.smatf, flociw).real
             Nexp = -6 * np.sum(self.irbf.u(self.beta) * self.glocl.a)
             fprint("Finished with Nexp=%.8f" % (Nexp.real), out_fl)
             DN = self.N-Nexp
@@ -308,15 +340,15 @@ class DysonSolver:
     
     def __update_se2b(self):
         se2btau_a = (
-            -(5*self.U**2 - 20*self.U*self.J + 28*self.J**2)*self.gloctau.a**2*self.gloctau.a[::-1]
-            -8*(self.U**2 - 4*self.U*self.J + 3*self.J**2)*self.gloctau.a*self.gloctau.b*self.gloctau.b[::-1]
-            +2*(self.U**2 - 4*self.U*self.J + 5*self.J**2)*self.gloctau.b**2*(self.gloctau.a[::-1] + self.gloctau.b[::-1])
+            (5*self.U**2 - 20*self.U*self.J + 28*self.J**2)*self.gloctau.a**2*self.gloctau.a[::-1]
+            +8*(self.U**2 - 4*self.U*self.J + 3*self.J**2)*self.gloctau.a*self.gloctau.b*self.gloctau.b[::-1]
+            -2*(self.U**2 - 4*self.U*self.J + 5*self.J**2)*self.gloctau.b**2*(self.gloctau.a[::-1] + self.gloctau.b[::-1])
                      )
         se2btau_b = (
-            -(self.U**2 - 4*self.U*self.J + 5*self.J**2)*self.gloctau.a**2*self.gloctau.b[::-1]
-            +2*(self.U**2 - 2*self.U*self.J + 3*self.J**2)*self.gloctau.a*self.gloctau.b*(2*self.gloctau.a[::-1] - self.gloctau.b[::-1])
-            -(self.U**2 - 4*self.U*self.J + 3*self.J**2)*self.gloctau.b**2*self.gloctau.a[::-1]
-            +(9*self.U**2 - 36*self.U*self.J + 38*self.J**2)*self.gloctau.b**2*self.gloctau.b[::-1]
+            +(self.U**2 - 4*self.U*self.J + 5*self.J**2)*self.gloctau.a**2*self.gloctau.b[::-1]
+            -2*(self.U**2 - 2*self.U*self.J + 3*self.J**2)*self.gloctau.a*self.gloctau.b*(2*self.gloctau.a[::-1] - self.gloctau.b[::-1])
+            +(self.U**2 - 4*self.U*self.J + 3*self.J**2)*self.gloctau.b**2*self.gloctau.a[::-1]
+            -(9*self.U**2 - 36*self.U*self.J + 38*self.J**2)*self.gloctau.b**2*self.gloctau.b[::-1]
                      )
         self.__se2bl = ohfit(self.stauf, ohmatrix(se2btau_a, se2btau_b))
         return
@@ -333,10 +365,19 @@ class DysonSolver:
         self.__sebl = self.staub.fit(ptau)
         return
     
+    def __seel_res_tau(self):
+        eiw = (self.flociw**-1 - self.glociw**-1) - self.sehf - self.se2biw
+        el = ohfit(self.smatf, eiw).real
+        return ohevaluate(self.stauf, el)
+    
     
     
     def solve(self, diis_active = True, tol = 1e-6, max_iter = 10000):
         if self.diis_mem == 0:
+            diis_active = False
+        if self.U == 0:
+            self.__J = 0
+            self.__diis_mem = 0
             diis_active = False
         out_fl = open(self.__fl, 'w')
         fprint("Starting execution with the following paramters", file=out_fl)
@@ -391,8 +432,7 @@ class DysonSolver:
                         fprint("c%i = %.8f" % (k, c[k]), file=out_fl)
                     seext = ohsum(c[:,None] * self.__diis_vals, axis=0)
                     self.__sehf = seext[0]
-                    se2btau = seext[1:]
-                    self.__se2bl = ohfit(self.stauf, se2btau)
+                    self.__se2bl = ohfit(self.stauf, seext[1:])
                     self.__diis_vals[-1] = ohcopy(seext)
                     self.__diis_err[-1] = self.__diis_vals[-1] - self.__diis_vals[-2]
             fprint("Computing gloc", file=out_fl)
@@ -443,6 +483,7 @@ class DysonSolver:
             print("Not solved yet, nothing to save")
             return
         with h5py.File(sv_fl+'.hdf5', "w") as fl:
+            print("Saving data on file")
             fl.create_dataset("T", data = self.T)
             fl.create_dataset("beta", data = self.beta)
             fl.create_dataset("wmax", data = self.wM)
@@ -468,6 +509,8 @@ class DysonSolver:
             fl.create_dataset("dl", data = self.dl)
             fl.create_dataset("sehf_a", data = self.sehf.a)
             fl.create_dataset("sehf_b", data = self.sehf.b)
+            fl.create_dataset("se2bl_a", data = self.se2bl.a)
+            fl.create_dataset("se2bl_b", data = self.se2bl.b)
             fl.create_dataset("seepl_a", data = self.seepl.a)
             fl.create_dataset("seepl_b", data = self.seepl.b)
             fl.create_dataset("sebl", data = self.sebl)
@@ -502,8 +545,13 @@ class DysonSolver:
             var = np.sqrt(12*gloc0.a*glocf.a + 6*gloc0.b*glocf.b)
             fl.create_dataset("varn", data=var)
             
+            gkbeta = ohsum(self.irbf.u(self.beta)[:,None,None,None] * self.gkl, axis=0)
+            fl.create_dataset("gkbeta_a", data = gkbeta.a)
+            fl.create_dataset("gkbeta_b", data = gkbeta.b)
+            
             
             # Correlators in irreducible reciprocal zone
+            print("Computing correlators")
             kidxs = np.transpose(np.indices((self.k_sz,)*3), (1,2,3,0)).reshape((self.k_sz**3,3))
             qidxs = kidxs[np.where((kidxs[:,0] <= self.k_sz//2) * (kidxs[:,1] <= kidxs[:,0]) * (kidxs[:,2] <= kidxs[:,0]) * (kidxs[:,2] <= kidxs[:,1]))]
             corrdiag = np.zeros(qidxs.shape[0])
@@ -525,3 +573,165 @@ class DysonSolver:
             fl.create_dataset("correlcrs1", data=corrcrs1)
             fl.create_dataset("correlcrs2", data=corrcrs2)
             fl.create_dataset("irrBZ", data=qidxs)
+            
+            print("Computing paramagnetic conductivity")
+            k_vecs = kidxs.reshape((self.k_sz,)*3 + (3,)) * 2*np.pi / self.k_sz
+            optcond = np.zeros((self.irbf.size,3,3))
+            gkimagtime = self.gktau
+            for i in range(3):
+                for j in range(3):
+                    optcond[:,i,j] = -self.t**2 * np.sum(np.sin(k_vecs[None,:,:,:,i]) * np.sin(k_vecs[None,:,:,:,j]) * (gkimagtime * gkimagtime[::-1]).trace, axis=(1,2,3)) / self.k_sz**3
+            fl.create_dataset("optcondpl", data=self.stauf.fit(optcond, axis=0))
+            
+            
+            print("Computing magneto-optical conductivity")
+            magnetocond = np.zeros((self.stauf.tau.size,12,3))
+            kx = k_vecs[...,0]
+            ky = k_vecs[...,1]
+            kz = k_vecs[...,2]
+            for i in range(12):
+                uk,vk,wk = commGtau(self.gkl, (i//2)*np.pi/3, -Fepbeta.trace, self.stauf, self.smatf, mode=['t','o'][i%2])
+                jxk,jyk,jzk = gyrocurrent(self.gkl, self.t, self.Jphm, self.irbf, self.stauf, self.smatf)
+                magnetocond[:,i,0] = -32*self.t**2*np.sum((jyk[None,...]*np.sin(kz)[None,...]*vk - jzk[None,...]*np.sin(ky)[None,...]*wk), axis=(1,2,3))
+                magnetocond[:,i,1] = -32*self.t**2*np.sum((jzk[None,...]*np.sin(kx)[None,...]*wk - jxk[None,...]*np.sin(kz)[None,...]*uk), axis=(1,2,3))
+                magnetocond[:,i,2] = -32*self.t**2*np.sum((jxk[None,...]*np.sin(ky)[None,...]*uk - jyk[None,...]*np.sin(kx)[None,...]*vk), axis=(1,2,3))
+            fl.create_dataset("magnetocond", data = self.stauf.fit(magnetocond, axis=0))
+
+
+
+
+def greenk_from_file(h5fl, irbf=None, irbb=None):
+    beta = h5fl["beta"][()]
+    wm = h5fl["wmax"][()]
+    create_irbf = True
+    if not irbf is None:
+        try:
+            if irbf.beta==beta and irbf.wmax==wm:
+                create_irbf = False
+        except:
+            pass
+    if create_irbf:
+        irbf = ir.FiniteTempBasis('F', beta, wm)
+    
+    create_irbb = True
+    if not irbb is None:
+        try:
+            if irbb.beta==beta and irbf.wmax==wm:
+                create_irbb = False
+        except:
+            pass
+    if create_irbb:
+        irbb = ir.FiniteTempBasis('B', beta, wm)
+    
+    
+    #Imag freq
+    stauf = ir.TauSampling(irbf)
+    smatf = ir.MatsubaraSampling(irbf)
+    iwn = 1j * smatf.wn * np.pi/beta
+    
+    #Chemichal potential
+    mu = h5fl["mu"][()]
+    
+    # Kinetic term
+    k_sz = int(h5fl["k_sz"][()])
+    t = h5fl["t"][()]
+    ky,kx,kz = np.meshgrid(*(np.arange(0,2*np.pi,2*np.pi/k_sz),)*3)
+    Hlatt = -2*t*(np.cos(kx) + np.cos(ky) + np.cos(kz))
+    
+    #Gloc
+    glocl = ohmatrix(h5fl["glocl_a"][:], h5fl["glocl_b"][:])
+    gloc_beta = ohsum(irbf.u(beta)*glocl)
+    
+    #hf
+    U = h5fl["U"][()]
+    J = h5fl["J"][()]
+    sehf = sehf = ohmatrix(-2*gloc_beta.a*(3*U-5*J), gloc_beta.b*(U-2*J))
+    
+    #sephm
+    Jphm = h5fl["Jphm"][()]
+    gkbeta = ohmatrix(h5fl["gkbeta_a"][:], h5fl["gkbeta_b"][:])
+    qidxs = np.transpose(np.indices((k_sz,)*3), (1,2,3,0)).reshape((k_sz**3,3))
+    sephm = ohzeros((k_sz,)*3)
+    for qidx in qidxs:
+        gqbeta = gkbeta[tuple(qidx)]
+        qx,qy,qz = qidx / k_sz * 2*np.pi
+        gammakq = 2*Jphm*(np.cos(kx-qx) + np.cos(ky-qy) + np.cos(kz-qz))
+        sephm += ohmatrix(4*gqbeta.a, -2*gqbeta.b)/3 * gammakq / k_sz**3
+    
+    #se2b
+    gloctau = ohevaluate(stauf, glocl)
+    se2btau_a = (
+        (5*U**2 - 20*U*J + 28*J**2)*gloctau.a**2*gloctau.a[::-1]
+        +8*(U**2 - 4*U*J + 3*J**2)*gloctau.a*gloctau.b*gloctau.b[::-1]
+        -2*(U**2 - 4*U*J + 5*J**2)*gloctau.b**2*(gloctau.a[::-1] + gloctau.b[::-1])
+                 )
+    se2btau_b = (
+        +(U**2 - 4*U*J + 5*J**2)*gloctau.a**2*gloctau.b[::-1]
+        -2*(U**2 - 2*U*J + 3*J**2)*gloctau.a*gloctau.b*(2*gloctau.a[::-1] - gloctau.b[::-1])
+        +(U**2 - 4*U*J + 3*J**2)*gloctau.b**2*gloctau.a[::-1]
+        -(9*U**2 - 36*U*J + 38*J**2)*gloctau.b**2*gloctau.b[::-1]
+                 )
+    se2bl = ohfit(stauf, ohmatrix(se2btau_a, se2btau_b))
+    se2biw = ohevaluate(smatf, se2bl)
+    
+    #seeb
+    staub = ir.TauSampling(irbb)
+    g = h5fl["g"][()]
+    dl = h5fl["dl"][:]
+    dtau = staub.evaluate(dl)
+    seepftau = -g**2/3 * dtau * ohmatrix(4/3*gloctau.a, -2/3*gloctau.b)
+    seepl = ohfit(stauf, seepftau)
+    seepiw = ohevaluate(smatf, seepl)
+    
+    lbd = h5fl["lbd"][()]
+    gkiw = (iwn[:,None,None,None] - Hlatt[None,:,:,:] - sehf - se2biw[:,None,None,None] - sephm[None,:,:,:] - 2*seepiw[:,None,None,None] + mu - 0.5*lbd*ohmatrix(0,1))**-1
+    return ohfit(smatf, gkiw, axis=0).real
+
+
+def correct_magnetocurrent_from_file(h5fl, irbf=None, irbb=None):
+    beta = h5fl["beta"][()]
+    wm = h5fl["wmax"][()]
+    create_irbf = True
+    if not irbf is None:
+        try:
+            if irbf.beta==beta and irbf.wmax==wm:
+                create_irbf = False
+        except:
+            pass
+    if create_irbf:
+        irbf = ir.FiniteTempBasis('F', beta, wm)
+    
+    create_irbb = True
+    if not irbb is None:
+        try:
+            if irbb.beta==beta and irbf.wmax==wm:
+                create_irbb = False
+        except:
+            pass
+    if create_irbb:
+        irbb = ir.FiniteTempBasis('B', beta, wm)
+        
+    stauf = ir.TauSampling(irbf)
+    smatf = ir.MatsubaraSampling(irbf)
+    print("Recovering Green's function")
+    gkl = greenk_from_file(h5fl, irbf, irbb)
+    t = h5fl["t"][()]
+    Jphm = h5fl["Jphm"][()]
+    ejt = h5fl["eeph"][()]
+    k_sz = h5fl["k_sz"][()]
+    kidxs = np.transpose(np.indices((k_sz,)*3), (1,2,3,0)).reshape((k_sz**3,3))
+    k_vecs = kidxs.reshape((k_sz,)*3 + (3,)) * 2*np.pi / k_sz
+    magnetocond = np.zeros((stauf.tau.size,12,3))
+    kx = k_vecs[...,0]
+    ky = k_vecs[...,1]
+    kz = k_vecs[...,2]
+    print("Computing magneto-optical conductivity")
+    for i in range(12):
+        print("Polarization %i of 12" % (i+1))
+        uk,vk,wk = commGtau(gkl, (i//2)*np.pi/3, ejt, stauf, smatf, mode=['t','o'][i%2])
+        jxk,jyk,jzk = gyrocurrent(gkl, t, Jphm, irbf, stauf, smatf)
+        magnetocond[:,i,0] = -32*t**2*np.sum((jyk[None,...]*np.sin(kz)[None,...]*vk - jzk[None,...]*np.sin(ky)[None,...]*wk), axis=(1,2,3))
+        magnetocond[:,i,1] = -32*t**2*np.sum((jzk[None,...]*np.sin(kx)[None,...]*wk - jxk[None,...]*np.sin(kz)[None,...]*uk), axis=(1,2,3))
+        magnetocond[:,i,2] = -32*t**2*np.sum((jxk[None,...]*np.sin(ky)[None,...]*uk - jyk[None,...]*np.sin(kx)[None,...]*vk), axis=(1,2,3))
+    # h5fl.create_dataset("magnetocond_corr", data = stauf.fit(magnetocond, axis=0))
+    h5fl["magnetocond"][:] = stauf.fit(magnetocond, axis=0)
