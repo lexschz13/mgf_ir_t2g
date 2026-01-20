@@ -1,1 +1,9 @@
-
+@software{mgf_ir_t2g,
+  author = {Miñarro, Alejandro S.},
+  doi = {https://doi.org/10.5281/zenodo.15527346},
+  month = {10},
+  title = {{t2g Matsubara Green's functions sparse-ir}},
+  url = {https://github.com/lexschz13/mgf_ir_t2g},
+  version = {1.0.2},
+  year = {2025}
+}
