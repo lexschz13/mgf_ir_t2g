@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mgf_ir_t2g"
+version = "0.1.0"
+description = "Computation of Matsubara Green's functions of t2g shells on lattice with Jahn-Teller and SOC by sparse sampling and intermediate basis methods"
+readme = "README.md"
+requires-python = ">=3.6"
+authors = [
+    {name = "Alejandro S. Miñarro", email = "alex.fcb.asm22@gmail.com"}
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "sparse_ir",
+    "xprec"
+]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["t2g_jt_soc"]
