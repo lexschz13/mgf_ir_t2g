@@ -1,15 +1,15 @@
 import numpy as np
 import sparse_ir as ir
 import h5py
-from .ohmatrix import ohmatrix, ohsum, ohcopy, ohzeros
-from .magneto import commGtau, gyrocurrent
+from .ohmatrix import ohmatrix, ohsum, ohcopy, ohzeros, ohfit, ohevaluate
+from .magneto import susc_mo#, print_dt#, susc_mo_kslice
 
 
-def ohfit(sampling, M, **kwargs):
-    return ohmatrix(sampling.fit(M.a, **kwargs), sampling.fit(M.b, **kwargs))
+# def ohfit(sampling, M, **kwargs):
+#     return ohmatrix(sampling.fit(M.a, **kwargs), sampling.fit(M.b, **kwargs))
 
-def ohevaluate(sampling, M, **kwargs):
-    return ohmatrix(sampling.evaluate(M.a, **kwargs), sampling.evaluate(M.b, **kwargs))
+# def ohevaluate(sampling, M, **kwargs):
+#     return ohmatrix(sampling.evaluate(M.a, **kwargs), sampling.evaluate(M.b, **kwargs))
 
 def fprint(string, file, **kwargs):
     print(string, **kwargs)
@@ -584,18 +584,18 @@ class DysonSolver:
             fl.create_dataset("optcondpl", data=self.stauf.fit(optcond, axis=0))
             
             
-            print("Computing magneto-optical conductivity")
-            magnetocond = np.zeros((self.stauf.tau.size,12,3))
-            kx = k_vecs[...,0]
-            ky = k_vecs[...,1]
-            kz = k_vecs[...,2]
-            for i in range(12):
-                uk,vk,wk = commGtau(self.gkl, (i//2)*np.pi/3, -Fepbeta.trace, self.stauf, self.smatf, mode=['t','o'][i%2])
-                jxk,jyk,jzk = gyrocurrent(self.gkl, self.t, self.Jphm, self.irbf, self.stauf, self.smatf)
-                magnetocond[:,i,0] = -32*self.t**2*np.sum((jyk[None,...]*np.sin(kz)[None,...]*vk - jzk[None,...]*np.sin(ky)[None,...]*wk), axis=(1,2,3))
-                magnetocond[:,i,1] = -32*self.t**2*np.sum((jzk[None,...]*np.sin(kx)[None,...]*wk - jxk[None,...]*np.sin(kz)[None,...]*uk), axis=(1,2,3))
-                magnetocond[:,i,2] = -32*self.t**2*np.sum((jxk[None,...]*np.sin(ky)[None,...]*uk - jyk[None,...]*np.sin(kx)[None,...]*vk), axis=(1,2,3))
-            fl.create_dataset("magnetocond", data = self.stauf.fit(magnetocond, axis=0))
+            # print("Computing magneto-optical conductivity")
+            # magnetocond = np.zeros((self.stauf.tau.size,12,3))
+            # kx = k_vecs[...,0]
+            # ky = k_vecs[...,1]
+            # kz = k_vecs[...,2]
+            # for i in range(12):
+            #     uk,vk,wk = commGtau(self.gkl, (i//2)*np.pi/3, -Fepbeta.trace, self.stauf, self.smatf, mode=['t','o'][i%2])
+            #     jxk,jyk,jzk = gyrocurrent(self.gkl, self.t, self.Jphm, self.irbf, self.stauf, self.smatf)
+            #     magnetocond[:,i,0] = -32*self.t**2*np.sum((jyk[None,...]*np.sin(kz)[None,...]*vk - jzk[None,...]*np.sin(ky)[None,...]*wk), axis=(1,2,3))
+            #     magnetocond[:,i,1] = -32*self.t**2*np.sum((jzk[None,...]*np.sin(kx)[None,...]*wk - jxk[None,...]*np.sin(kz)[None,...]*uk), axis=(1,2,3))
+            #     magnetocond[:,i,2] = -32*self.t**2*np.sum((jxk[None,...]*np.sin(ky)[None,...]*uk - jyk[None,...]*np.sin(kx)[None,...]*vk), axis=(1,2,3))
+            # fl.create_dataset("magnetocond", data = self.stauf.fit(magnetocond, axis=0))
 
 
 
@@ -645,18 +645,19 @@ def greenk_from_file(h5fl, irbf=None, irbb=None):
     #hf
     U = h5fl["U"][()]
     J = h5fl["J"][()]
-    sehf = sehf = ohmatrix(-2*gloc_beta.a*(3*U-5*J), gloc_beta.b*(U-2*J))
+    sehf = ohmatrix(-2*gloc_beta.a*(3*U-5*J), gloc_beta.b*(U-2*J))
     
     #sephm
     Jphm = h5fl["Jphm"][()]
     gkbeta = ohmatrix(h5fl["gkbeta_a"][:], h5fl["gkbeta_b"][:])
-    qidxs = np.transpose(np.indices((k_sz,)*3), (1,2,3,0)).reshape((k_sz**3,3))
-    sephm = ohzeros((k_sz,)*3)
-    for qidx in qidxs:
-        gqbeta = gkbeta[tuple(qidx)]
-        qx,qy,qz = qidx / k_sz * 2*np.pi
-        gammakq = 2*Jphm*(np.cos(kx-qx) + np.cos(ky-qy) + np.cos(kz-qz))
-        sephm += ohmatrix(4*gqbeta.a, -2*gqbeta.b)/3 * gammakq / k_sz**3
+    if Jphm != 0:
+        qidxs = np.transpose(np.indices((k_sz,)*3), (1,2,3,0)).reshape((k_sz**3,3))
+        sephm = ohzeros((k_sz,)*3)
+        for qidx in qidxs:
+            gqbeta = gkbeta[tuple(qidx)]
+            qx,qy,qz = qidx / k_sz * 2*np.pi
+            gammakq = 2*Jphm*(np.cos(kx-qx) + np.cos(ky-qy) + np.cos(kz-qz))
+            sephm += ohmatrix(4*gqbeta.a, -2*gqbeta.b)/3 * gammakq / k_sz**3
     
     #se2b
     gloctau = ohevaluate(stauf, glocl)
@@ -684,11 +685,15 @@ def greenk_from_file(h5fl, irbf=None, irbb=None):
     seepiw = ohevaluate(smatf, seepl)
     
     lbd = h5fl["lbd"][()]
-    gkiw = (iwn[:,None,None,None] - Hlatt[None,:,:,:] - sehf - se2biw[:,None,None,None] - sephm[None,:,:,:] - 2*seepiw[:,None,None,None] + mu - 0.5*lbd*ohmatrix(0,1))**-1
+    if Jphm != 0:
+        gkiw = (iwn[:,None,None,None] - Hlatt[None,:,:,:] - sehf - se2biw[:,None,None,None] - sephm[None,:,:,:] - 2*seepiw[:,None,None,None] + mu - 0.5*lbd*ohmatrix(0,1))**-1
+    else:
+        gkiw = (iwn[:,None,None,None] - Hlatt[None,:,:,:] - sehf - se2biw[:,None,None,None] - 2*seepiw[:,None,None,None] + mu - 0.5*lbd*ohmatrix(0,1))**-1
+    
     return ohfit(smatf, gkiw, axis=0).real
 
 
-def correct_magnetocurrent_from_file(h5fl, irbf=None, irbb=None):
+def correct_magnetocurrent_from_file(h5fl, irbf=None, irbb=None, only_info=False):
     beta = h5fl["beta"][()]
     wm = h5fl["wmax"][()]
     create_irbf = True
@@ -711,27 +716,59 @@ def correct_magnetocurrent_from_file(h5fl, irbf=None, irbb=None):
     if create_irbb:
         irbb = ir.FiniteTempBasis('B', beta, wm)
         
-    stauf = ir.TauSampling(irbf)
-    smatf = ir.MatsubaraSampling(irbf)
     print("Recovering Green's function")
     gkl = greenk_from_file(h5fl, irbf, irbb)
     t = h5fl["t"][()]
-    Jphm = h5fl["Jphm"][()]
+    beta = h5fl["beta"][()]
     ejt = h5fl["eeph"][()]
-    k_sz = h5fl["k_sz"][()]
-    kidxs = np.transpose(np.indices((k_sz,)*3), (1,2,3,0)).reshape((k_sz**3,3))
-    k_vecs = kidxs.reshape((k_sz,)*3 + (3,)) * 2*np.pi / k_sz
-    magnetocond = np.zeros((stauf.tau.size,12,3))
-    kx = k_vecs[...,0]
-    ky = k_vecs[...,1]
-    kz = k_vecs[...,2]
-    print("Computing magneto-optical conductivity")
+    if not only_info:
+        print("Computing magneto-optical conductivity")
+        magnetocond_ls = []
     for i in range(12):
         print("Polarization %i of 12" % (i+1))
-        uk,vk,wk = commGtau(gkl, (i//2)*np.pi/3, ejt, stauf, smatf, mode=['t','o'][i%2])
-        jxk,jyk,jzk = gyrocurrent(gkl, t, Jphm, irbf, stauf, smatf)
-        magnetocond[:,i,0] = -32*t**2*np.sum((jyk[None,...]*np.sin(kz)[None,...]*vk - jzk[None,...]*np.sin(ky)[None,...]*wk), axis=(1,2,3))
-        magnetocond[:,i,1] = -32*t**2*np.sum((jzk[None,...]*np.sin(kx)[None,...]*wk - jxk[None,...]*np.sin(kz)[None,...]*uk), axis=(1,2,3))
-        magnetocond[:,i,2] = -32*t**2*np.sum((jxk[None,...]*np.sin(ky)[None,...]*uk - jyk[None,...]*np.sin(kx)[None,...]*vk), axis=(1,2,3))
-    # h5fl.create_dataset("magnetocond_corr", data = stauf.fit(magnetocond, axis=0))
-    h5fl["magnetocond"][:] = stauf.fit(magnetocond, axis=0)
+        angle = (i//2)*np.pi/3
+        if only_info:
+            raise NotImplementedError()
+            pass
+            # print_dt(gkl, beta, t, angle, ejt, irbf, irbb, ['t','o'][i%2])
+        else:
+            magnetocond_ls.append(susc_mo(gkl, beta, t, angle, ejt, irbf, irbb, ['t','o'][i%2]))
+    
+    if not only_info:
+        h5fl.create_dataset("magnetocond", data = np.array(magnetocond_ls))
+    # h5fl["magnetocond"][:] = stauf.fit(magnetocond, axis=0)
+
+
+def magneto_current_tzelong_from_file(h5fl, irbf=None, irbb=None, key="magnetocond_tz+"):
+    beta = h5fl["beta"][()]
+    wm = h5fl["wmax"][()]
+    create_irbf = True
+    if not irbf is None:
+        try:
+            if irbf.beta==beta and irbf.wmax==wm:
+                create_irbf = False
+        except:
+            pass
+    if create_irbf:
+        irbf = ir.FiniteTempBasis('F', beta, wm)
+    
+    create_irbb = True
+    if not irbb is None:
+        try:
+            if irbb.beta==beta and irbf.wmax==wm:
+                create_irbb = False
+        except:
+            pass
+    if create_irbb:
+        irbb = ir.FiniteTempBasis('B', beta, wm)
+    
+    print("Recovering Green's function")
+    gkl = greenk_from_file(h5fl, irbf, irbb)
+    t = h5fl["t"][()]
+    beta = h5fl["beta"][()]
+    ejt = h5fl["eeph"][()]
+    
+    print("Computing magneto-optical conductivity")
+    magnetocond_ls = susc_mo(gkl, beta, t, np.pi, ejt, irbf, irbb, 't')
+    
+    h5fl.create_dataset(key, data = magnetocond_ls)

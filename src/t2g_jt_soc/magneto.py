@@ -107,7 +107,7 @@ def GD2h(Gkl, angle, ejt, smat, mode='t'):
             )
 
 
-def Gspin_proj(Gkl, beta, t, angle, ejt, irbf, jt_mode):
+def Gspin_proj(Gkl, beta, t, angle, ejt, irbf, jt_mode, get_se=False):
     stauf = ir.TauSampling(irbf)
     smatf = ir.MatsubaraSampling(irbf)
     # staub = ir.TauSampling(irbb)
@@ -156,6 +156,8 @@ def Gspin_proj(Gkl, beta, t, angle, ejt, irbf, jt_mode):
     print("Computing self-energy")
     sesktau = k_convolution(Gktau_jt, psiktau, einidxs="ij...,ajk...->ik...")
     seskl = stauf.fit(sesktau, axis=2)
+    if get_se:
+        return seskl
     del sesktau
     seskiw = smatf.evaluate(seskl, axis=2)
     del seskl

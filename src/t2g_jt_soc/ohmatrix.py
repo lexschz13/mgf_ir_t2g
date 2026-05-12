@@ -238,3 +238,13 @@ def ohsum(M, **kwargs):
 
 def ohcopy(M, **kwargs):
     return ohmatrix(np.copy(M.a), np.copy(M.b))
+
+
+
+# IR auxiliars
+
+def ohfit(sampling, M, **kwargs):
+    return ohmatrix(sampling.fit(M.a, **kwargs), sampling.fit(M.b, **kwargs))
+
+def ohevaluate(sampling, M, **kwargs):
+    return ohmatrix(sampling.evaluate(M.a, **kwargs), sampling.evaluate(M.b, **kwargs))
