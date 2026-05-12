@@ -1,15 +1,14 @@
 cff-version: 1.2.0
 title: "t2g Matsubara Green's functions sparse-ir"
 version: "1.0.2"
-date-released: "2025-10-01"          # Ajusta la fecha exacta si quieres
+date-released: "2025-10-01"
 doi: "10.5281/zenodo.15527346"
 message: "If you use this software, please cite it as below."
 type: software
 authors:
   - given-names: Alejandro S.
     family-names: Miñarro
-    # orcid: https://orcid.org/0000-0000-XXXX-XXXX   # Añádelo si tienes ORCID
-license: ""                           # Añade tu licencia si la tienes (MIT, GPL-3.0, etc.)
+    # orcid: https://orcid.org/0000-0001-6037-0394
 repository-code: "https://github.com/lexschz13/mgf_ir_t2g"
 url: "https://github.com/lexschz13/mgf_ir_t2g"
 keywords:
