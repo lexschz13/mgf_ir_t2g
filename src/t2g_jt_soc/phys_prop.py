@@ -24,8 +24,8 @@ def conductivity_real_ir(irb, stau, smat, optsusctau, alpha=10**-1.1, axis=-1, g
     iwn = np.pi/irb.beta * smat.wn
     ker_reg = lambda x: x**2/(x**2 + iwn**2)
     ker_reg_mat = smat.fit(irb.v.overlap(ker_reg).T[:,::2].real, axis=0)[::2,:].real
-    if get_err:
-        sl = np.linalg.eigvals(ker_reg_mat)
+    # if get_err:
+    #     sl = np.linalg.eigvals(ker_reg_mat)
     ker_pinv_reg = np.linalg.inv(ker_reg_mat.T @ ker_reg_mat + alpha**2*np.eye(ker_reg_mat.shape[0])) @ ker_reg_mat.T
     if optsusctau.ndim == 1:
         optsuscl = stau.fit(optsusctau)[::2]
@@ -36,8 +36,12 @@ def conductivity_real_ir(irb, stau, smat, optsusctau, alpha=10**-1.1, axis=-1, g
     
     if get_err:
         if eps is None:
-            eps = alpha * 1e-1 * np.abs(sl)
-        errl = np.abs((alpha**2 - sl**2)/(alpha**2 + sl**2)) * eps
+            eps = alpha * 1e-1
+        # errl = np.abs((alpha**2 - sl**2)/(alpha**2 + sl**2)) * eps * np.abs(sl)
+        if optsusctau.ndim == 1:
+            errl = np.sqrt((ker_pinv_reg)**2 @ (eps*optsuscl)**2)/np.pi
+        else:
+            errl = np.sqrt(_correct_axis_position(np.einsum('ij,j...->i...', ker_pinv_reg**2, (eps*optsuscl)**2), axis))/np.pi
         return condrel, errl
     
     else:
