@@ -2,7 +2,7 @@ import numpy as np
 import sparse_ir as ir
 from .ohmatrix import ohevaluate, ohfit
 from .reciprocal_space import k_convolution
-from .phys_prop import conductivity_from_ir, conductivity_real_ir
+from .phys_prop import conductivity_from_ir, conductivity_real_ir, conductivity_imag_ir
 
 
 
@@ -177,7 +177,7 @@ def Gspin_proj(Gkl, beta, t, angle, ejt, irbf, jt_mode, get_se=False):
     return Gktau_jt, G1ktau
 
 
-def susc_mo(Gkl, beta, t, angle, ejt, irbf, irbb, jt_mode):
+def susc_mo(Gkl, beta, t, angle, ejt, irbf, irbb, jt_mode, alpha=10**-1.1):
     stauf = ir.TauSampling(irbf)
     smatf = ir.MatsubaraSampling(irbf)
     staub = ir.TauSampling(irbb)
@@ -305,6 +305,10 @@ def susc_mo(Gkl, beta, t, angle, ejt, irbf, irbb, jt_mode):
     chixktau += np.einsum("...,ijt...,jit...->t...", jk[1], Gktau_jt, Hzktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[2], Gktau_jt, Hyktau[:,:,::-1], optimize=True)
     chiyktau += np.einsum("...,ijt...,jit...->t...", jk[2], Gktau_jt, Hxktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[0], Gktau_jt, Hzktau[:,:,::-1], optimize=True)
     chizktau += np.einsum("...,ijt...,jit...->t...", jk[0], Gktau_jt, Hyktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[1], Gktau_jt, Hxktau[:,:,::-1], optimize=True)
+    #
+    chixktau += np.einsum("ijt...,jit...->t...", Fyktau, Fzktau[:,:,::-1])
+    chiyktau += np.einsum("ijt...,jit...->t...", Fzktau, Fxktau[:,:,::-1])
+    chizktau += np.einsum("ijt...,jit...->t...", Fxktau, Fyktau[:,:,::-1])
     # _temp = np.einsum("abc,b...->ac...", levi_civitta, jk, optimize=True)
     # chiktau = np.einsum("ac...,ijt...,cjit...->at...", _temp, G1ktau, Fktau[:,:,:,::-1,...], optimize=True)
     # chiktau += np.einsum("ac...,ijt...,cjit...->at...", _temp, Gktau_jt, Hktau[:,:,:,::-1,...], optimize=True)
@@ -312,4 +316,5 @@ def susc_mo(Gkl, beta, t, angle, ejt, irbf, irbb, jt_mode):
     # chiktau += np.einsum("abc,b...,ijt...,cjit...->at...", levi_civitta, jk, Gktau_jt, Hktau[:,:,:,::-1,...], optimize=True)
     chiktau = np.array([chixktau,chiyktau,chizktau])
     
-    return -conductivity_real_ir(irbb, staub, smatb, chiktau + chiktau[:,::-1], axis=1)
+    # return -conductivity_real_ir(irbb, staub, smatb, chiktau + chiktau[:,::-1], axis=1)
+    return -conductivity_imag_ir(irbb, staub, smatb, chiktau - chiktau[:,::-1], alpha=alpha, axis=1)

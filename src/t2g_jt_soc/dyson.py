@@ -372,7 +372,7 @@ class DysonSolver:
     
     
     
-    def solve(self, diis_active = True, tol = 1e-6, max_iter = 10000):
+    def solve(self, diis_active = True, tol = 1e-6, max_iter = 10000, relax_iter=50, relax_tol_factor=5):
         if self.diis_mem == 0:
             diis_active = False
         if self.U == 0:
@@ -458,6 +458,9 @@ class DysonSolver:
                 fprint("Reached max iterations", file=out_fl)
                 out_fl.close()
                 return
+            if iterations >= relax_iter:
+                conv *= relax_tol_factor
+                relax_tol_factor = 1
             check_loop = True
             if iterations >= 5:
                 for ii in range(1,5):
@@ -739,7 +742,7 @@ def correct_magnetocurrent_from_file(h5fl, irbf=None, irbb=None, only_info=False
     # h5fl["magnetocond"][:] = stauf.fit(magnetocond, axis=0)
 
 
-def magneto_current_tzelong_from_file(h5fl, irbf=None, irbb=None, key="magnetocond_tz+"):
+def magneto_current_tzelong_from_file(h5fl, irbf=None, irbb=None, key="magnetocond_tz+", alpha=10**-1.1):
     beta = h5fl["beta"][()]
     wm = h5fl["wmax"][()]
     create_irbf = True
@@ -769,6 +772,6 @@ def magneto_current_tzelong_from_file(h5fl, irbf=None, irbb=None, key="magnetoco
     ejt = h5fl["eeph"][()]
     
     print("Computing magneto-optical conductivity")
-    magnetocond_ls = susc_mo(gkl, beta, t, np.pi, ejt, irbf, irbb, 't')
+    magnetocond_ls = susc_mo(gkl, beta, t, np.pi, ejt, irbf, irbb, 't', alpha=alpha)
     
     h5fl.create_dataset(key, data = magnetocond_ls)
