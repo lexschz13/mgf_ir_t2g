@@ -1,0 +1,12 @@
+[workspace]
+restore_data_on_startup = True
+save_data_on_exit = True
+save_history = True
+save_non_project_files = False
+project_type = 'empty-project-type'
+recent_files = ['src\\test.py', 'src\\mgf_t2g\\__init__.py', 'src\\mgf_t2g\\sym_matrix\\__init__.py', 'src\\mgf_t2g\\sym_matrix\\sym_matrix.py', 'src\\mgf_t2g\\dyson\\__init__.py', 'src\\mgf_t2g\\k_space\\__init__.py', 'src\\mgf_t2g\\optimization\\__init__.py', 'src\\mgf_t2g\\optimization\\constraints.py', 'src\\mgf_t2g\\optimization\\problems.py', 'src\\mgf_t2g\\dyson\\analytical_continuation.py', 'src\\mgf_t2g\\optimization\\regularizations.py']
+
+[main]
+version = 0.2.0
+recent_files = []
+
