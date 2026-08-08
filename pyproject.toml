@@ -9,7 +9,7 @@ description = "Computation of Matsubara Green's functions of t2g shells on latti
 readme = "README.md"
 requires-python = ">=3.6"
 authors = [
-    {name = "Alejandro S. Miñarro", email = "alex.fcb.asm22@gmail.com"}
+    {name = "Alejandro S. Miñarro", email = "alex.san.min13@gmail.com"}
 ]
 dependencies = [
     "numpy",
