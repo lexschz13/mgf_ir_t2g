@@ -96,7 +96,7 @@ def hilbert_ir(fl, irb, eta=1e-8, axis=-1):
     Intimately related with Kramers-Kronig relations.
     For complex funtion f(z) = f_1(z)+if_2(z),
     f_2(z) = H[f_1](z)
-    f_2(z) = -H[f_1](z)
+    f_1(z) = -H[f_2](z)
 
     Parameters
     ----------
