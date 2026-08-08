@@ -4,6 +4,10 @@ from scipy.integrate import quad_vec, quad
 from .__utils import axis_pull, axis_push
 
 
+###############################################################################
+# Numerically stable version of discontinuous/non-derivable functions/distributions
+# In the limit k->0 they fullfill the correspindent function or distribution
+
 def __quasi_abs(x, k=1e-8):
     # return k*np.log(np.cosh(x/k))
     return x*__quasi_sign(x,k) - k*np.loc(x**2+k**2)/(2*np.pi)
@@ -22,6 +26,19 @@ def __quasi_delta(x, k=1e-8):
 def __quasi_inv(x, k=1e-8):
     return x/(x**2+k**2)
 
+###############################################################################
+
+def __check_guess(fl, guess, axis):
+    if guess is None:
+        return np.zeros_like(fl)
+    
+    if guess.shape != fl.shape:
+        raise TypeError("Guess must be the same shape than Green's function element")
+    
+    return axis_push(guess, axis).reshape((-1, guess.ndim-1))
+
+###############################################################################
+# Fermion optimizers
 
 def fermion_lsq_l1(fl, irb, alpha, axis=-1, guess=None):
     if irb.statistics != 'F':
@@ -87,6 +104,7 @@ def fermion_admm_l1(fl, irb, alpha, axis=-1, guess=None):
     pushed_shape = fl.shape
     fl = fl.reshape((-1, fl.ndim-1))
     ret = np.zeros_like(fl)
+    guess = __check_guess(fl, guess, axis)
     for i in range(fl.shape[0]):
         ret[i] = __fermion_admm_l1_single(fl[i], irb, alpha, axis, guess)
     ret = ret.reshape(pushed_shape)
@@ -138,6 +156,7 @@ def fermion_admm_l2(fl, irb, alpha, axis=-1, guess=None):
     pushed_shape = fl.shape
     fl = fl.reshape((-1, fl.ndim-1))
     ret = np.zeros_like(fl)
+    guess = __check_guess(fl, guess, axis)
     for i in range(fl.shape[0]):
         ret[i] = __fermion_admm_l2_single(fl[i], irb, alpha, axis, guess)
     ret = ret.reshape(pushed_shape)
@@ -159,6 +178,8 @@ _fermion_solvers = {
 def __reg_kernel_ir(irb):
     return quad_vec(lambda w: w*irb.v(w)[:,None]*irb.v[None,:])
 
+###############################################################################
+# Bosonic optimizers
 
 def boson_lsq_l2(fl, irb, alpha=10**-1.1, axis=-1, guess=None):
     if irb.statistics != 'B':
