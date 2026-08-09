@@ -29,6 +29,28 @@ from ..convergence import (implemented_conv,
 
 class DysonSolver:
     def __init__(self, *args, **kwargs):
+        """
+        From a set of parameters solves self-consistent Dyson equation for Oh symmetric system with SOC and dynamic JT.
+        This can be initialized with parameters setting at zero all Green's functions and self energies, prepared to solved and saved.
+        Also it can be initialized from a file getting the solved functions.
+
+        Parameters
+        ----------
+        *args : TYPE
+            DESCRIPTION.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Raises
+        ------
+        TypeError
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
         num_args = len(args)+len(kwargs)
         if num_args in [1,2,3]:
             self.__solver_load(*args, **kwargs)
@@ -40,7 +62,47 @@ class DysonSolver:
     
     ######################################################################
     #Initializers
-    def __solver_init(self, irbf, irbb, N, t, U, J, Jphm, w0, g, lbd, latt_shape, diis_mem=5, fl_out="t2g_soc_jtpol.out"):
+    def __solver_init(self, irbf, irbb, N, t, U, J, Jphm, w0, g, lbd, latt_shape, fl_out="t2g_soc_jtpol.out"):
+        """
+        Unsolved initialization mode.
+
+        Parameters
+        ----------
+        irbf : FiniteTempBasis
+            Fermionic basis from package sparse_ir.
+        irbb : FiniteTempBasis
+            Bosonic basis from package sparse_ir.
+        N : (int, float)
+            Desired particle density, from 0 to 6.
+            This solver works with secodn Bohr approximations, for stability interval 1 to 5 is recomended.
+        t : (int, float)
+            Hopping amplitude.
+            Greater than zero.
+        U : (int, float)
+            Direct correlation integral.
+            Greater than zero.
+        J : (int, float)
+            Exchange integral.
+            Greater than zero.
+        Jphm : (int, flaot)
+            Cooperative JTE exchange integral.
+            Greater than zero.
+        w0 : (int, float)
+            Phonon natural frequency.
+            Greater than zero.
+        g : (int, float)
+            Phonon-electron coupling.
+            Greater than zero.
+        lbd : (int, float)
+            SOC amplitude.
+            Greater than zero.
+        latt_shape : (int, iterable(int))
+            Lattice shape.
+        fl_out : str, optional
+            Output file.
+            The default is "t2g_soc_jtpol.out".
+
+        """
         # self.__T = check_physical_param(T, #Temperaturre in K
         #                                 0,
         #                                 text_type_error="Temperature must be a number",
@@ -90,10 +152,10 @@ class DysonSolver:
                                         3,
                                         "Non value number of lattice dimensions",
                                         "Introduce three element iterable or an integer to define shape")
-        self.__diis_mem = check_discrete_parameter(diis_mem, #Memory for diis extrapolation
-                                                   2,
-                                                   text_value_error="Memory for DIIS extrapolation must be a number",
-                                                   text_type_error="Memory for DIIS extrapolation must be an integer bigger than 1") 
+        # self.__diis_mem = check_discrete_parameter(diis_mem, #Memory for diis extrapolation
+        #                                            2,
+        #                                            text_value_error="Memory for DIIS extrapolation must be a number",
+        #                                            text_type_error="Memory for DIIS extrapolation must be an integer bigger than 1") 
         
         self.__fl_out = fl_out
         
@@ -138,6 +200,8 @@ class DysonSolver:
         
         
         # SC loop
+        self.__conv_method = None
+        self.__diis_mem = None
         self.__conv_ls = []
         # self.__diis_vals = ohzeros(1) if diis_mem==0 else ohzeros((diis_mem, self.irbf.size+1))
         # self.__diis_err = ohzeros(1) if diis_mem==0 else ohzeros((diis_mem, self.irbf.size+1))
@@ -160,6 +224,7 @@ class DysonSolver:
             self.__lbd = fl["lbd"][()]
             self.__latt_shape = fl["latt_shape"][:]
             self.__diis_mem = fl["diis_mem"][()]
+            self.__conv_method = fl["conv_method"][()]
             
             # Kinetic term
             ky,kx,kz = np.meshgrid(*tuple(np.arange(0,2*np.pi,2*np.pi/self.__latt_shape[i]) for i in [1,0,2]))
@@ -454,7 +519,8 @@ class DysonSolver:
     
     ######################################################################
     #Self-consistency solve
-    def solve(self, conv_method=None, tol=5e-6, mutol=1e-6, maxiter=10000):
+    def solve(self, conv_method=None, tol=5e-6, mutol=1e-6, maxiter=10000,
+              diis_mem=None):
         if self.U == 0 and self.g==0:
             conv_method = None
         
@@ -462,8 +528,13 @@ class DysonSolver:
             raise NotImplementedError("This convergence method is not implemented")
         
         if conv_method == "diis":
+            self.__conv_method = conv_method
             self.__diis_vals = ohzeros((self.diis_mem, self.irbf.size+1))
             self.__diis_err = ohzeros((self.diis_mem, self.irbf.size+1))
+            self.__diis_mem = check_discrete_parameter(diis_mem, #Memory for diis extrapolation
+                                                       2,
+                                                       text_value_error="Memory for DIIS extrapolation must be a number",
+                                                       text_type_er="Memory for DIIS extrapolation must be an integer bigger than 1")
         
         out_fl = open(self.__fl_out, 'w')
         fprint("Starting execution with the following paramters", file=out_fl)
@@ -558,6 +629,7 @@ class DysonSolver:
             fl.create_dataset("diis_mem", data = self.diis_mem)
             fl.create_dataset("mu", data = self.mu)
             fl.create_dataset("conv", data = np.array(self.__conv_ls))
+            fl.create_dataset("conv_method", data=self.__conv_method)
             
             # Green's funcions objetcs
             fl.create_dataset("glocl_a", data = self.glocl.a)

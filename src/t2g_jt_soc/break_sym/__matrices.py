@@ -1,5 +1,7 @@
 import numpy as np
 
+# This file is used to deposit matrix representations
+
 levi_civitta = np.array([[[int((i - j) * (j - k) * (k - i) // 2) for k in range(3)] for j in range(3)] for i in range(3)])
 
 g0 = np.eye(3)

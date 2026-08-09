@@ -1,24 +1,52 @@
 import numpy as np
 from ..sym_matrix import matrixevaluate, matrixfit
 from ..k_space import k_convolution
-from ..analytical_continuation import boson_continuation
+from ..analytical_continuation import boson_continuation, hilbert_ir
 from .__matrices import ax,ay,az,Lx,Ly,Lz,pauli_cross
 
 
 
 def GD2h(dy_solver, angle, mode='t'):
+    """
+    Takes a Green's function solved from a DysonSolver and applies symmetry breakings from a fixed distortion.
+    These distortions correspond to JT eg modes repredented by Gell-Mann matrices 3 and 8.
+
+    Parameters
+    ----------
+    dy_solver : DysonSolver
+        Dyson solver class containing Green's functions and bases. It must be solved
+    angle : float
+        Angle that defines JT distortion.
+    mode : str, optional
+        Distortion mode.
+        For tetragonal mode 't' or "tetragonal". The distortion is defined by sin(angle)*gm3+cos(angle)*gm8.
+        Fot orthorhombic mode 'o' or "orthorhombic". The distortion is defined by cos(angle)*gm3-sin(angle)*gm8.
+        The default is 't'.
+
+    Returns
+    -------
+    np.ndarray
+        Matrix representation of distorted Green's function.
+
+    """
+    
+    if not dy_solver.is_solved:
+        raise TypeError("DysonSolver must be solved.")
+    
     Gkl = dy_solver.gkl
     ejt = dy_solver.eeph
     smat = dy_solver.smat
     Gkiw = matrixevaluate(smat, Gkl, axis=0)
     
     
-    if mode=='t':
+    if mode in ['t', "tetragonal"]:
         a = np.sin(angle)
         b = np.cos(angle)
-    elif mode=='o':
+    elif mode in ['o', "orthorhombic"]:
         a = np.cos(angle)
         b = -np.sin(angle)
+    else:
+        raise ValueError("Only two modes, t or tetragonal and o or orthorhombic")
     
     detGkiw = Gkiw.a**2 - 2*Gkiw.b**2 + Gkiw.a*Gkiw.b
     alphakiw = (Gkiw.a + Gkiw.b)/detGkiw
@@ -46,7 +74,34 @@ def GD2h(dy_solver, angle, mode='t'):
             )
 
 
-def Gspin_proj(dy_solver, angle, jt_mode, get_se=False):
+def Gspin_proj(dy_solver, angle, jt_mode):
+    """
+    Takes a Green's function solved from a DysonSolver and, from a fixed distortion, computes the expansion of spin projection.
+    These distortions correspond to JT eg modes repredented by Gell-Mann matrices 3 and 8.
+
+    Parameters
+    ----------
+    dy_solver : DysonSolver
+        Dyson solver class containing Green's functions and bases. It must be solved
+    angle : float
+        Angle that defines JT distortion.
+    mode : str, optional
+        Distortion mode.
+        For tetragonal mode 't' or "tetragonal". The distortion is defined by sin(angle)*gm3+cos(angle)*gm8.
+        Fot orthorhombic mode 'o' or "orthorhombic". The distortion is defined by cos(angle)*gm3-sin(angle)*gm8.
+        The default is 't'.
+
+    Returns
+    -------
+    Gkl_jt : np.ndarray
+        Matrix representation of distorted Green's function after hopping assymetry is applied.
+        This is the zeroth order spin projection expansion of the Green's function.
+    G1kl : np.ndarray
+        First order spin projection expansion of the Green's function.
+    seskl : np.ndarray
+        Self-energy of spin-projection.
+
+    """
     stauf = dy_solver.stauf
     smatf = dy_solver.smatf
     # staub = ir.TauSampling(irbb)
@@ -101,11 +156,11 @@ def Gspin_proj(dy_solver, angle, jt_mode, get_se=False):
     print("Computing self-energy")
     sesktau = k_convolution(Gktau_jt, psiktau, einidxs="ij...,ajk...->ik...")
     seskl = stauf.fit(sesktau, axis=2)
-    if get_se:
-        return seskl
+    # if get_se:
+    #     return seskl
     del sesktau
     seskiw = smatf.evaluate(seskl, axis=2)
-    del seskl
+    # del seskl
     
     # New Green
     # print("Computing spin projected Green's function")
@@ -118,10 +173,41 @@ def Gspin_proj(dy_solver, angle, jt_mode, get_se=False):
     del seskiw
     G1kl = smatf.fit(G1kiw, axis=2)
     
-    return Gkl_jt, G1kl
+    return Gkl_jt, G1kl, seskl
 
 
-def susc_mo(dy_solver, angle, jt_mode, alpha=10**-1.1, guess=None, solver="lsql2"):
+def conductivity_mo(dy_solver, angle, jt_mode, alpha=10**-1.1, guess=None, solver="lsql2"):
+    """
+    Takes a Green's function solved from a DysonSolver and, from a fixed distortion, computes the antisymmetric component of associeted conductivity tensor on ir-basis.
+    These distortions correspond to JT eg modes repredented by Gell-Mann matrices 3 and 8.
+
+    Parameters
+    ----------
+    dy_solver : DysonSolver
+        Dyson solver class containing Green's functions and bases. It must be solved
+    angle : float
+        Angle that defines JT distortion.
+    mode : str, optional
+        Distortion mode.
+        For tetragonal mode 't' or "tetragonal". The distortion is defined by sin(angle)*gm3+cos(angle)*gm8.
+        Fot orthorhombic mode 'o' or "orthorhombic". The distortion is defined by cos(angle)*gm3-sin(angle)*gm8.
+        The default is 't'.
+    alpha : (int,float), optional
+        See :func:"boson_continuation" documantetion.
+        The default is 10**-1.1.
+    guess : np.ndarray, optional
+        See :func:"boson_continuation" documantetion.
+        The default is None.
+    solver : str, optional
+        See :func:"boson_continuation" documantetion.
+        The default is "lsql2".
+
+    Returns
+    -------
+    np.ndarray
+        Antisymmetric conductivity tensor on ir-basis.
+
+    """
     Gkl = dy_solver.gkl
     irbf = dy_solver.irbf
     beta = dy_solver.beta
@@ -147,7 +233,8 @@ def susc_mo(dy_solver, angle, jt_mode, alpha=10**-1.1, guess=None, solver="lsql2
     upsx, upsy, upsz = np.linalg.inv(A) @ np.array([Q3, Q8, 0])
     ups = np.array([upsx, upsy, upsz])
     
-    Gkl_jt, G1kl = Gspin_proj(dy_solver, angle, jt_mode)
+    Gkl_jt, G1kl, seskl = Gspin_proj(dy_solver, angle, jt_mode)
+    del seskl
     Gktau_jt = stauf.evaluate(Gkl_jt, axis=2)
     Gkiw_jt = smatf.evaluate(Gkl_jt, axis=2)
     G1ktau = stauf.evaluate(G1kl, axis=2)
@@ -240,6 +327,6 @@ def susc_mo(dy_solver, angle, jt_mode, alpha=10**-1.1, guess=None, solver="lsql2
     chiktau = np.array([chixktau,chiyktau,chizktau])
     chikl = staub.fit(chiktau)
     
-    # return -conductivity_real_ir(irbb, staub, smatb, chiktau + chiktau[:,::-1], axis=1)
-    # return -conductivity_imag_ir(irbb, staub, smatb, chiktau - chiktau[:,::-1], alpha=alpha, axis=1)
-    return boson_continuation(chikl - chikl[:,::-1], alpha, axis=1, guess=guess, solver=solver)
+    recondl = boson_continuation(chikl - chikl[:,::-1], alpha, axis=1, guess=guess, solver=solver)
+    imcondl = hilbert_ir(recondl, dy_solver.irbb)
+    return recondl + 1j*imcondl

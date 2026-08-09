@@ -2,6 +2,7 @@ import numpy as np
 
 
 def diis(vec, err, inner, sum_op = np.sum, eps_reg=1e-8):
+    # Computation of direct inversion in the iterative subspace algorithm
     mem = vec.shape[0]
     if err.shape[0] != mem:
         raise ValueError("Error vector and values vector must have same size")

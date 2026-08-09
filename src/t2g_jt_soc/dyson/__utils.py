@@ -2,6 +2,7 @@ import numpy as np
 
 
 def fprint(string, file, **kwargs):
+    # Print on output file
     print(string, **kwargs)
     print(string, file=file, **kwargs)
 
@@ -9,6 +10,9 @@ def fprint(string, file, **kwargs):
 def frobenius_inner(X, Y):
     return (X*Y).trace
 
+
+###############################################################################
+# Check funcs
 
 def check_physical_param(p,
                          minp=0,
