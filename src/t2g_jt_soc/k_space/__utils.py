@@ -5,6 +5,7 @@ import numpy as np
 
 
 def __handle_mem_error(h_fft):
+    # This function is to avoid memory errors
     if h_fft.ndim <= 3:
         raise MemoryError("Unable to allocate array for fft")
     
