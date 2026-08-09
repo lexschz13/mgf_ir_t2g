@@ -1,4 +1,4 @@
-from numpy import np
+import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import quad_vec, quad
 from .__utils import axis_pull, axis_push

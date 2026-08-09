@@ -33,22 +33,59 @@ class DysonSolver:
         From a set of parameters solves self-consistent Dyson equation for Oh symmetric system with SOC and dynamic JT.
         This can be initialized with parameters setting at zero all Green's functions and self energies, prepared to solved and saved.
         Also it can be initialized from a file getting the solved functions.
+        The initialization mode depends on which parameters are introduces.
 
-        Parameters
+        Parameters (New init mode)
         ----------
-        *args : TYPE
-            DESCRIPTION.
-        **kwargs : TYPE
-            DESCRIPTION.
-
-        Raises
-        ------
-        TypeError
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
+        irbf : FiniteTempBasis
+            Fermionic basis from package sparse_ir.
+        irbb : FiniteTempBasis
+            Bosonic basis from package sparse_ir.
+        N : (int, float)
+            Desired particle density, from 0 to 6.
+            This solver works with secodn Bohr approximations, for stability interval 1 to 5 is recomended.
+        t : (int, float)
+            Hopping amplitude.
+            Greater-equal than zero.
+            If t=0 only local Green's function is computed.
+        U : (int, float)
+            Direct correlation integral.
+            Greater-equal than zero.
+        J : (int, float)
+            Exchange integral.
+            Greater-equal than U.
+        Jphm : (int, flaot)
+            Cooperative JTE exchange integral.
+            Greater-equal than zero.
+        w0 : (int, float)
+            Phonon natural frequency.
+            Greater-equal than zero.
+        g : (int, float)
+            Phonon-electron coupling.
+            Greater-equal than zero.
+        lbd : (int, float)
+            SOC amplitude.
+            Greater-equal than zero.
+        latt_shape : (int, iterable(int))
+            Lattice shape.
+        fl_out : str, optional
+            Output file.
+            The default is "t2g_soc_jtpol.out".
+        
+        Parameters (File load mode)
+        ----------
+        file : str
+            File name.
+        irbf : (None,FiniteTempBasis), optional
+            Fermionic basis from package sparse_ir.
+            If None a new basis is initialized from file medtadata.
+            Basis metadata must coincide with fiel metadata.
+            The default is None.
+        irbb : (None,FiniteTempBasis), optional
+            Fermionic basis from package sparse_ir.
+            If None a new basis is initialized from file medtadata.
+            Basis metadata must coincide with fiel metadata.
+            The default is None.
 
         """
         num_args = len(args)+len(kwargs)
@@ -77,25 +114,26 @@ class DysonSolver:
             This solver works with secodn Bohr approximations, for stability interval 1 to 5 is recomended.
         t : (int, float)
             Hopping amplitude.
-            Greater than zero.
+            Greater-equal than zero.
+            If t=0 only local Green's function is computed.
         U : (int, float)
             Direct correlation integral.
-            Greater than zero.
+            Greater-equal than zero.
         J : (int, float)
             Exchange integral.
-            Greater than zero.
+            Greater-equal than U.
         Jphm : (int, flaot)
             Cooperative JTE exchange integral.
-            Greater than zero.
+            Greater-equal than zero.
         w0 : (int, float)
             Phonon natural frequency.
-            Greater than zero.
+            Greater-equal than zero.
         g : (int, float)
             Phonon-electron coupling.
-            Greater than zero.
+            Greater-equal than zero.
         lbd : (int, float)
             SOC amplitude.
-            Greater than zero.
+            Greater-equal than zero.
         latt_shape : (int, iterable(int))
             Lattice shape.
         fl_out : str, optional
@@ -115,43 +153,40 @@ class DysonSolver:
         self.__N = check_physical_param(N, #Particle density
                                         0,
                                         6,
-                                        text_type_error="Particle density must be a number",
-                                        text_value_error=r"Particle density of a $t_{2g}$ shell goes from 0 to 6")  
+                                        text_type_error="Particle density must be a number.",
+                                        text_value_error=r"Particle density of a $t_{2g}$ shell goes from 0 to 6.")  
         self.__t = check_physical_param(t, #Kinetic integral
                                         0,
-                                        text_type_error="Kinetic integral must be a number",
-                                        text_value_error="Kinetic integral must be a positive number") 
+                                        text_type_error="Kinetic integral must be a number.",
+                                        text_value_error="Kinetic integral must be a positive number.") 
         self.__U = check_physical_param(U, #Electron-electron direct integral
                                         0,
-                                        text_type_error="Electron-electron direct integral must be a number",
-                                        text_value_error="Electron-electron direct integral must be a positive number") 
-        if U != 0:
-            self.__J = check_physical_param(J, #Hund's coupling
-                                            0,
-                                            text_type_error="Hund's coupling must be a number",
-                                            text_value_error="Hund's coupling must be a positive number")
-        else:
-            self.__J = 0
+                                        text_type_error="Electron-electron direct integral must be a number.",
+                                        text_value_error="Electron-electron direct integral must be a positive number.") 
+        self.__J = check_physical_param(J, #Hund's coupling
+                                        U,
+                                        text_type_error="Hund's coupling must be a number greater than direct correlation integral.",
+                                        text_value_error="Hund's coupling must be a positive number.")
         self.__Jphm = check_physical_param(Jphm, #Orbital exchange
                                            0,
-                                           text_type_error="Orbital exchange must be a number",
-                                           text_value_error="Orbital exchange must be a positive number")
+                                           text_type_error="Orbital exchange must be a number.",
+                                           text_value_error="Orbital exchange must be a positive number.")
         self.__w0 = check_physical_param(w0, #Phonon natural frequency
                                          0,
-                                         text_type_error="Phonon natural frequency must be a number",
-                                         text_value_error="Phonon natural frequency must be a positive number") 
+                                         text_type_error="Phonon natural frequency must be a number.",
+                                         text_value_error="Phonon natural frequency must be a positive number.") 
         self.__g = check_physical_param(g, #Phonon-electron coupling constant
                                         0,
-                                        text_type_error="Phonon-electron coupling constant must be a number",
-                                        text_value_error="Phonon-electron coupling constant must be a positive number")
+                                        text_type_error="Phonon-electron coupling constant must be a number.",
+                                        text_value_error="Phonon-electron coupling constant must be a positive number.")
         self.__lbd = check_physical_param(lbd, #Spin-orbit coupling constant
                                           0,
-                                          text_type_error="Spin-orbit coupling constant must be a number",
-                                          text_value_error="Spin-orbit coupling constant must be a positive number")
+                                          text_type_error="Spin-orbit coupling constant must be a number.",
+                                          text_value_error="Spin-orbit coupling constant must be a positive number.")
         self.__latt_shape = check_shape(latt_shape,
                                         3,
-                                        "Non value number of lattice dimensions",
-                                        "Introduce three element iterable or an integer to define shape")
+                                        "Non value number of lattice dimensions.",
+                                        "Introduce three element iterable or an integer to define shape.")
         # self.__diis_mem = check_discrete_parameter(diis_mem, #Memory for diis extrapolation
         #                                            2,
         #                                            text_value_error="Memory for DIIS extrapolation must be a number",
@@ -211,7 +246,30 @@ class DysonSolver:
         return
     
     def __solver_load(self, file, irbf=None, irbb=None):
-        with h5py.File(file+'.hdf5', "r") as fl:
+        """
+        DysonSolver loader from file.
+
+        Parameters
+        ----------
+        file : str
+            File name.
+        irbf : (None,FiniteTempBasis), optional
+            Fermionic basis from package sparse_ir.
+            If None a new basis is initialized from file medtadata.
+            Basis metadata must coincide with fiel metadata.
+            The default is None.
+        irbb : (None,FiniteTempBasis), optional
+            Fermionic basis from package sparse_ir.
+            If None a new basis is initialized from file medtadata.
+            Basis metadata must coincide with fiel metadata.
+            The default is None.
+
+        """
+        
+        if type(file) != str:
+            raise TypeError("File name of data storage must be a string.")
+        if file[-5:] != ".hdf5": file += ".hdf5"
+        with h5py.File(file, "r") as fl:
             # self.__T = fl["T"][()]
             # self.__wM = fl["wmax"][()]
             self.__N = fl["N"][()]
@@ -453,10 +511,12 @@ class DysonSolver:
     ######################################################################
     #Self-consistency updates
     def __update_green(self, out_fl, tol=1e-6, delta=0.1, max_iter=10000):
-        # self.__mu = np.sum((self.sehf + matrixsum(self.irbf.u(self.beta)*(self.se2bl+2*self.seepl))).real.eigvals*np.array([1/3,2/3])) # Approximates near to half filling
+        # Electronic Green's function updating
+        # Chemical potential is adjusted
+        
         # Half-filling approximation for w->infty (only static components)
         self.__mu = (self.sehf + matrixsum(self.Hlatt+self.sephm, axis=(-1,-2,-3))/self.latt_size).trace.real/6
-        # last_sign = 0
+        
         iterations = 0
         while True:
             fprint("Starting with mu=%.8f" % self.mu, out_fl)
@@ -469,7 +529,7 @@ class DysonSolver:
                                                    self.sephm[None,:,:,:] +
                                                    2*self.seepiw[:,None,None,None])
                 glociw = matrixsum(gkiw, axis=(1,2,3)) / self.latt_size
-            else:
+            else: # When t=0 it is assumed isolated site
                 glociw = electron_propagator_single_site(self.freqf,
                                                          self.mu,
                                                          self.Hlatt + self.lbd*ohmatrix(0,1),
@@ -478,18 +538,22 @@ class DysonSolver:
                                                          2*self.seepiw)
             
             self.__glocl = matrixfit(self.smatf, glociw).real
-            if self.t != 0:
-                hybiw = glociw**-1 - self.sehf - self.se2biw - matrixsum(self.sephm, axis=(-1,-2,-3))/self.latt_size - 2*self.seepiw
-                self.__hybl = matrixfit(self.smatf, hybiw).real
+            hybiw = glociw**-1 - self.sehf - self.se2biw - matrixsum(self.sephm, axis=(-1,-2,-3))/self.latt_size - 2*self.seepiw
+            self.__hybl = matrixfit(self.smatf, hybiw).real # Hybridization function
+                                                            # Unused, no DMFT algorithm, but stored
             
             fprint("Finished with Nexp=%.8f" % (self.nexp), out_fl)
+            
+            # Adjustment of mu by gradient descent
             DN = self.N-self.nexp
             if abs(DN) <= tol:
                 return
             etaiw = np.sum((self.glociw*self.glociw).trace) if self.__t == 0 else np.sum((self.gkiw * self.gkiw).trace, axis=(-1,-2,-3)) / self.latt_size
             etal = self.smatf.fit(etaiw).real
-            etabeta = np.sum(self.irbf.u(self.beta) * etal)
+            etabeta = np.sum(self.irbf.u(self.beta) * etal) # d<n>/dmu
             self.__mu += DN/etabeta
+            
+            # Variable step algorithm for mu adjust, deprecated
             # if DN > 0:
             #     if last_sign == -1:
             #         delta /= 2
@@ -509,19 +573,71 @@ class DysonSolver:
     
     
     def __update_self_energy(self):
-        self.__sebl = seb(self.gloctau, self.g, self.staub)
-        self.__sehf = sehf_ee(matrixsum(self.irbf.u(self.beta).reshape((self.irbf.size,) + (1,)*self.glocl.ndim-1) * self.glocl, axis=0),
-                              self.U, self.J)
-        self.__se2bl = se2b_ee(self.gloctau, self.U, self.J, self.stauf)
-        self.__sephm = sehf_phm(matrixsum(self.irbf.u(self.beta).reshape((self.irbf.size,) + (1,)*self.gkl.ndim-1) * self.gkl, axis=0),
-                                self.Jphm)
+        # Self-energies update
+        if self.g != 0: self.__sebl = seb(self.gloctau, self.g, self.staub)
+        if self.U != 0: self.__sehf = sehf_ee(matrixsum(self.irbf.u(self.beta).reshape((self.irbf.size,) + (1,)*self.glocl.ndim-1) * self.glocl, axis=0),
+                                              self.U, self.J)
+        if self.U != 0: self.__se2bl = se2b_ee(self.gloctau, self.U, self.J, self.stauf)
+        if self.Jphm != 0: self.__sephm = sehf_phm(matrixsum(self.irbf.u(self.beta).reshape((self.irbf.size,) + (1,)*self.gkl.ndim-1) * self.gkl, axis=0),
+                                                   self.Jphm)
     
     
     ######################################################################
     #Self-consistency solve
     def solve(self, conv_method=None, tol=5e-6, mutol=1e-6, maxiter=10000,
               diis_mem=None):
-        if self.U == 0 and self.g==0:
+        """
+        
+
+        Parameters
+        ----------
+        conv_method : (None, str), optional
+            Convergence acceleration method.
+            If None no convergence acceleration method is executed.
+            If correlation integrals and coupling constants are 0 it is set to None.
+            The default is None.
+        tol : float, optional
+            Convergence tolerance.
+            The default is 5e-6.
+            Greater-equal than 1e-15.
+        mutol : float, optional
+            Tolerance for chemical potential adjustment.
+            Greater-equal than 1e-15.
+            The default is 1e-6.
+        maxiter : int, optional
+            Maximum iterations of self-consistency.
+            Greater than 0.
+            The default is 10000.
+        diis_mem : (None, int), optional
+            DIIS memory truncation.
+            Only considered if DIIS convergence method is chosen, then it must be an integer greater than 1.
+            The default is None.
+
+        Raises
+        ------
+        NotImplementedError
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        tol = check_physical_param(tol,
+                                   1e-15,
+                                   text_type_error="Tolerance must be a number.",
+                                   text_value_error="Minimum tolerance allowed is 1e-15 (machine precission).")
+        mutol = check_physical_param(mutol,
+                                     1e-15,
+                                     text_type_error="Tolerance must be a number.",
+                                     text_value_error="Minimum tolerance allowed is 1e-15 (machine precission).")
+        maxiter = check_discrete_parameter(maxiter,
+                                           1,
+                                           text_type_error="Maximum iterations must be an integer.",
+                                           text_value_error="No allowed 0 or negative maximum iterations.")
+        
+        if self.U == 0 and self.g==0 and self.Jphm==0:
             conv_method = None
         
         if not conv_method is None and not conv_method in implemented_conv:
@@ -533,8 +649,8 @@ class DysonSolver:
             self.__diis_err = ohzeros((self.diis_mem, self.irbf.size+1))
             self.__diis_mem = check_discrete_parameter(diis_mem, #Memory for diis extrapolation
                                                        2,
-                                                       text_value_error="Memory for DIIS extrapolation must be a number",
-                                                       text_type_er="Memory for DIIS extrapolation must be an integer bigger than 1")
+                                                       text_value_error="Memory for DIIS extrapolation must be a number.",
+                                                       text_type_er="Memory for DIIS extrapolation must be an integer bigger than 1.")
         
         out_fl = open(self.__fl_out, 'w')
         fprint("Starting execution with the following paramters", file=out_fl)
@@ -607,11 +723,25 @@ class DysonSolver:
     ######################################################################
     #File save
     def save(self, sv_fl):
+        """
+        Save solver data in hdf5 file only if it is solved.
+
+        Parameters
+        ----------
+        sv_fl : str
+            File name.
+
+        """
         if not self.__solved:
             print("Not solved yet, nothing to save")
             return
-        with h5py.File(sv_fl+'.hdf5', "w") as fl:
+        if type(sv_fl) != str:
+            raise TypeError("File name of data storage must be a string.")
+        if sv_fl[-5:] != ".hdf5": sv_fl += ".hdf5"
+        with h5py.File(sv_fl, "w") as fl:
             print("Saving data on file")
+            # Password
+            fl.create_dataset("password", data = "dyson_solver") # Added to recognize the DysonSolver files
             # Metadata
             fl.create_dataset("T", data = self.T)
             fl.create_dataset("beta", data = self.beta)

@@ -6,7 +6,7 @@ from .analytical_continuation import *
 from .sym_matrix import (ohmatrix, ohzeros, ohidentity, ohrandom,
                          matrixcopy, matrixsum, matrixfit, matrixevaluate)
 from .k_space import *
-from .break_cond_sym import Gspin_proj, conductivity_mo
+from .break_sym import Gspin_proj, conductivity_mo
 
 
 __all__ = [
