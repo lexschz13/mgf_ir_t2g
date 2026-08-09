@@ -486,7 +486,7 @@ class DysonSolver:
             DN = self.N-self.nexp
             if abs(DN) <= tol:
                 return
-            etaiw = np.sum((self.gkiw * self.gkiw).trace, axis=(-1,-2,-3)) / self.latt_size
+            etaiw = np.sum((self.glociw*self.glociw).trace) if self.__t == 0 else np.sum((self.gkiw * self.gkiw).trace, axis=(-1,-2,-3)) / self.latt_size
             etal = self.smatf.fit(etaiw).real
             etabeta = np.sum(self.irbf.u(self.beta) * etal)
             self.__mu += DN/etabeta
