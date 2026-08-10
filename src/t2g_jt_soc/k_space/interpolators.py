@@ -1,7 +1,10 @@
 import numpy as np
 from numpy.typing import NDArray
 from scipy.interpolate import RegularGridInterpolator
+from typing import Unpack
+from collections.abc import Callable
 from ..__utils.__utils import axes_push, axes_pull
+from ..__utils.__new_types import RealScalar
 
 
 from collections.abc import Iterable
@@ -9,7 +12,8 @@ from collections.abc import Iterable
 
 
 def interpBZ(f: np.ndarray, kdim: int = 3, axes: int | Iterable[int] = (-3,-2,-1),
-             superdomain: int = 1, gamma: str = "bl", method: int = "cubic") -> callable:
+             superdomain: int = 1, gamma: str = "bl",
+             method: str = "cubic") -> Callable[Unpack[tuple[RealScalar,...]],NDArray[float]]:
     """
     Interpolates an array which defines a function on a reciprocal space grid.
 

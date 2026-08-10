@@ -1,8 +1,21 @@
 import numpy as np
+from warnings import warn
+from typing import TYPE_CHECKING
+from collections.abc import Callable
+from ..__utils.__new_types import Scalar
 
 
-def diis(vec, err, inner, sum_op = np.sum, eps_reg=1e-8):
+if TYPE_CHECKING:
+    from ..sym_matrix.sym_matrix import _AbstractMatrix
+
+
+def diis(vec: _AbstractMatrix, err: _AbstractMatrix, inner: Callable[[_AbstractMatrix,_AbstractMatrix],Scalar],
+         sum_op: Callable[[_AbstractMatrix | Scalar],_AbstractMatrix | Scalar] = np.sum,
+         eps_reg: float = 1e-8) -> _AbstractMatrix:
     # Computation of direct inversion in the iterative subspace algorithm
+    if abs(eps_reg) > 1e-5:
+        warn("Too big matrix inverse regularizer can induce numerical errors.", UserWarning)
+    
     mem = vec.shape[0]
     if err.shape[0] != mem:
         raise ValueError("Error vector and values vector must have same size")

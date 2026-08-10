@@ -3,37 +3,47 @@ from numpy.typing import NDArray
 from sparse_ir import FiniteTempBasis
 from scipy.optimize import minimize
 from scipy.integrate import quad_vec, quad
+from warnings import warn
 from ..__utils.__utils import axis_pull, axis_push
+from ..__utils.__new_types import NDArray1D, RealScalar
 
-from typing import TypeVar
-NDArray1D = np.ndarray[tuple[np.number], np.dtype[TypeVar("DType", bound=np.generic)]]
 
 
 ###############################################################################
 # Numerically stable version of discontinuous/non-derivable functions/distributions
 # In the limit k->0 they fullfill the correspindent function or distribution
 
-def __quasi_abs(x: float | NDArray[float], k: float = 1e-8) -> float | NDArray[float]:
+def __quasi_abs(x: RealScalar | NDArray[RealScalar], k: float = 1e-8) -> RealScalar | NDArray[float]:
     # return k*np.log(np.cosh(x/k))
+    if abs(k) > 1e-5:
+        warn("Too big limit regularizer can induce numerical errors.", UserWarning)
     return x*__quasi_sign(x,k) - k*np.loc(x**2+k**2)/(2*np.pi)
 
-def __quasi_sign(x: float | NDArray[float], k: float = 1e-8) -> float | NDArray[float]:
+def __quasi_sign(x: RealScalar | NDArray[RealScalar], k: float = 1e-8) -> RealScalar | NDArray[float]:
     # return np.tanh(x/k)
+    if abs(k) > 1e-5:
+        warn("Too big limit regularizer can induce numerical errors.", UserWarning)
     return np.arctan(x/k)/np.pi
 
-def __quasi_heaviside(x: float | NDArray[float], k: float = 1e-8) -> float | NDArray[float]:
+def __quasi_heaviside(x: RealScalar | NDArray[RealScalar], k: float = 1e-8) -> RealScalar | NDArray[float]:
+    if abs(k) > 1e-5:
+        warn("Too big limit regularizer can induce numerical errors.", UserWarning)
     return __quasi_sign(x,k)*0.5+0.5
 
-def __quasi_delta(x: float | NDArray[float], k: float = 1e-8) -> float | NDArray[float]:
+def __quasi_delta(x: RealScalar | NDArray[RealScalar], k: float = 1e-8) -> RealScalar | NDArray[float]:
     # return np.cosh(x/k)**-2
+    if abs(k) > 1e-5:
+        warn("Too big limit regularizer can induce numerical errors.", UserWarning)
     return k/np.pi*(x**2+k**2)**-1
 
-def __quasi_inv(x: float | NDArray[float], k: float = 1e-8) -> float | NDArray[float]:
+def __quasi_inv(x: RealScalar | NDArray[RealScalar], k: float = 1e-8) -> RealScalar | NDArray[float]:
+    if abs(k) > 1e-5:
+        warn("Too big limit regularizer can induce numerical errors.", UserWarning)
     return x/(x**2+k**2)
 
 ###############################################################################
 
-def __check_guess(fl: NDArray[float], guess: NDArray[float], axis: int) -> NDArray[float]:
+def __check_guess(fl: NDArray[RealScalar], guess: NDArray[RealScalar], axis: int) -> NDArray[RealScalar]:
     if guess is None:
         return np.zeros_like(fl)
     
@@ -45,8 +55,8 @@ def __check_guess(fl: NDArray[float], guess: NDArray[float], axis: int) -> NDArr
 ###############################################################################
 # Fermion optimizers
 
-def fermion_lsq_l1(fl: NDArray[float], irb: FiniteTempBasis, alpha: float, axis: int = -1,
-                   guess: None | NDArray[float] = None) -> NDArray[float]:
+def fermion_lsq_l1(fl: NDArray[RealScalar], irb: FiniteTempBasis, alpha: RealScalar, axis: int = -1,
+                   guess: None | NDArray[RealScalar] = None) -> NDArray[float]:
     if irb.statistics != 'F':
         raise ValueError("Continuation specific for fermions")
     if fl.ndim ==1:
@@ -56,8 +66,8 @@ def fermion_lsq_l1(fl: NDArray[float], irb: FiniteTempBasis, alpha: float, axis:
     
 
 
-def fermion_lsq_l2(fl: NDArray[float], irb: FiniteTempBasis, alpha: float, axis: int = -1,
-                   guess: None | NDArray[float] = None) -> NDArray[float]:
+def fermion_lsq_l2(fl: NDArray[RealScalar], irb: FiniteTempBasis, alpha: RealScalar, axis: int = -1,
+                   guess: None | NDArray[RealScalar] = None) -> NDArray[float]:
     if irb.statistics != 'F':
         raise ValueError("Continuation specific for fermions")
     if fl.ndim ==1:
@@ -65,8 +75,8 @@ def fermion_lsq_l2(fl: NDArray[float], irb: FiniteTempBasis, alpha: float, axis:
     return axis_pull(-irb.s / (alpha**2 + irb.s**2) * axis_push(fl, axis), axis)
 
 
-def __fermion_admm_l1_single(fl: NDArray1D[float], irb: FiniteTempBasis, alpha: float,
-                   guess: None | NDArray1D[float] = None) -> NDArray1D[float]:
+def __fermion_admm_l1_single(fl: NDArray1D[RealScalar], irb: FiniteTempBasis, alpha: RealScalar,
+                   guess: None | NDArray1D[RealScalar] = None) -> NDArray1D[float]:
     if fl.ndim != 1:
         raise TypeError("Only 1D array minimization allowed")
     
@@ -103,8 +113,8 @@ def __fermion_admm_l1_single(fl: NDArray1D[float], irb: FiniteTempBasis, alpha: 
     return res.x
 
 
-def fermion_admm_l1(fl: NDArray[float], irb: FiniteTempBasis, alpha: float, axis: int = -1,
-                   guess: None | NDArray[float] = None) -> NDArray[float]:
+def fermion_admm_l1(fl: NDArray[RealScalar], irb: FiniteTempBasis, alpha: RealScalar, axis: int = -1,
+                   guess: None | NDArray[RealScalar] = None) -> NDArray[float]:
     if irb.statistics != 'F':
         raise ValueError("Continuation specific for fermions")
     if fl.ndim == 1:
@@ -120,8 +130,8 @@ def fermion_admm_l1(fl: NDArray[float], irb: FiniteTempBasis, alpha: float, axis
     return axis_pull(ret)
 
 
-def __fermion_admm_l2_single(fl: NDArray1D[float], irb: FiniteTempBasis, alpha: float,
-                   guess: None | NDArray1D[float] = None) -> NDArray1D[float]:
+def __fermion_admm_l2_single(fl: NDArray1D[RealScalar], irb: FiniteTempBasis, alpha: RealScalar,
+                   guess: None | NDArray1D[RealScalar] = None) -> NDArray1D[float]:
     if fl.ndim != 1:
         raise TypeError("Only 1D array minimization allowed")
     
@@ -157,8 +167,8 @@ def __fermion_admm_l2_single(fl: NDArray1D[float], irb: FiniteTempBasis, alpha: 
     
     return res.x
 
-def fermion_admm_l2(fl: NDArray[float], irb: FiniteTempBasis, alpha: float, axis: int = -1,
-                   guess: None | NDArray[float] = None) -> NDArray[float]:
+def fermion_admm_l2(fl: NDArray[RealScalar], irb: FiniteTempBasis, alpha: RealScalar, axis: int = -1,
+                   guess: None | NDArray[RealScalar] = None) -> NDArray[float]:
     if irb.statistics != 'F':
         raise ValueError("Continuation specific for fermions")
     if fl.ndim == 1:
@@ -186,13 +196,14 @@ _fermion_solvers = {
 
 
 
-def __reg_kernel_ir(irb):
+def __reg_kernel_ir(irb: FiniteTempBasis) -> NDArray[float]:
     return quad_vec(lambda w: w*irb.v(w)[:,None]*irb.v[None,:])
 
 ###############################################################################
 # Bosonic optimizers
 
-def boson_lsq_l2(fl, irb, alpha=10**-1.1, axis=-1, guess=None):
+def boson_lsq_l2(fl: NDArray[RealScalar], irb: FiniteTempBasis, alpha: RealScalar = 10**-1.1,
+                 axis: int = -1, guess: None | NDArray[RealScalar] = None) -> NDArray[float]:
     if irb.statistics != 'B':
         raise ValueError("Continuation specific for bosons")
     kmat = __reg_kernel_ir(irb)

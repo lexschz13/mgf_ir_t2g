@@ -6,6 +6,7 @@ from ..sym_matrix import matrixevaluate, matrixfit
 from ..k_space import k_convolution
 from ..analytical_continuation import boson_continuation, hilbert_ir
 from .__matrices import ax,ay,az,Lx,Ly,Lz,pauli_cross
+from ..__utils.__new_types import RealScalar
 
 
 from typing import TYPE_CHECKING
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 
 
 
-def GD2h(dy_solver: DysonSolver, angle: float, mode: str = 't') -> NDArray:
+def GD2h(dy_solver: DysonSolver, angle: RealScalar, mode: str = 't') -> NDArray[float]:
     """
     Takes a Green's function solved from a DysonSolver and applies symmetry breakings from a fixed distortion.
     These distortions correspond to JT eg modes repredented by Gell-Mann matrices 3 and 8.
@@ -23,7 +24,7 @@ def GD2h(dy_solver: DysonSolver, angle: float, mode: str = 't') -> NDArray:
     ----------
     dy_solver : DysonSolver
         Dyson solver class containing Green's functions and bases. It must be solved
-    angle : float
+    angle : RealScalar
         Angle that defines JT distortion.
     mode : str, optional
         Distortion mode.
@@ -83,7 +84,7 @@ def GD2h(dy_solver: DysonSolver, angle: float, mode: str = 't') -> NDArray:
             )
 
 
-def Gspin_proj(dy_solver, angle, jt_mode):
+def Gspin_proj(dy_solver: DysonSolver, angle: RealScalar, jt_mode: str = 't') -> tuple[NDArray[float]]:
     """
     Takes a Green's function solved from a DysonSolver and, from a fixed distortion, computes the expansion of spin projection.
     These distortions correspond to JT eg modes repredented by Gell-Mann matrices 3 and 8.
@@ -92,9 +93,9 @@ def Gspin_proj(dy_solver, angle, jt_mode):
     ----------
     dy_solver : DysonSolver
         Dyson solver class containing Green's functions and bases. It must be solved
-    angle : float
+    angle : RealScalar
         Angle that defines JT distortion.
-    mode : str, optional
+    jt_mode : str, optional
         Distortion mode.
         For tetragonal mode 't' or "tetragonal". The distortion is defined by sin(angle)*gm3+cos(angle)*gm8.
         Fot orthorhombic mode 'o' or "orthorhombic". The distortion is defined by cos(angle)*gm3-sin(angle)*gm8.
@@ -102,12 +103,12 @@ def Gspin_proj(dy_solver, angle, jt_mode):
 
     Returns
     -------
-    Gkl_jt : np.ndarray
+    Gkl_jt : NDArray[float]
         Matrix representation of distorted Green's function after hopping assymetry is applied.
         This is the zeroth order spin projection expansion of the Green's function.
-    G1kl : np.ndarray
+    G1kl : NDArray[float]
         First order spin projection expansion of the Green's function.
-    seskl : np.ndarray
+    seskl : NDArray[float]
         Self-energy of spin-projection.
 
     """
@@ -174,7 +175,8 @@ def Gspin_proj(dy_solver, angle, jt_mode):
     return Gkl_jt, G1kl, seskl
 
 
-def conductivity_mo(dy_solver, angle, jt_mode, alpha=10**-1.1, guess=None, solver="lsql2"):
+def conductivity_mo(dy_solver: DysonSolver, angle: RealScalar, jt_mode: str = 't', alpha: RealScalar = 10**-1.1,
+                    guess: None | NDArray[RealScalar] = None, solver: str = "lsql2") -> NDArray[complex]:
     """
     Takes a Green's function solved from a DysonSolver and, from a fixed distortion, computes the antisymmetric component of associeted conductivity tensor on ir-basis.
     These distortions correspond to JT eg modes repredented by Gell-Mann matrices 3 and 8.
@@ -183,17 +185,17 @@ def conductivity_mo(dy_solver, angle, jt_mode, alpha=10**-1.1, guess=None, solve
     ----------
     dy_solver : DysonSolver
         Dyson solver class containing Green's functions and bases. It must be solved
-    angle : float
+    angle : RealScalar
         Angle that defines JT distortion.
-    mode : str, optional
+    jt_mode : str, optional
         Distortion mode.
         For tetragonal mode 't' or "tetragonal". The distortion is defined by sin(angle)*gm3+cos(angle)*gm8.
         Fot orthorhombic mode 'o' or "orthorhombic". The distortion is defined by cos(angle)*gm3-sin(angle)*gm8.
         The default is 't'.
-    alpha : (int,float), optional
+    alpha : RealScalar, optional
         See :func:"boson_continuation" documantetion.
         The default is 10**-1.1.
-    guess : np.ndarray, optional
+    guess : None | NDArray[RealScalar], optional
         See :func:"boson_continuation" documantetion.
         The default is None.
     solver : str, optional
@@ -202,7 +204,7 @@ def conductivity_mo(dy_solver, angle, jt_mode, alpha=10**-1.1, guess=None, solve
 
     Returns
     -------
-    np.ndarray
+    NDArray[float]
         Antisymmetric conductivity tensor on ir-basis.
 
     """

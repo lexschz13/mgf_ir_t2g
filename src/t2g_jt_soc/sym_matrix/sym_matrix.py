@@ -1,22 +1,20 @@
 import numpy as np
 from numpy.typing import NDArray
+from ..__utils.__new_types import Scalar, ArrayKey
 
 from typing import Any, Self, Iterable
 
 
-Scalar = int | float | complex
-ScalarArray = NDArray[int] | NDArray[float] | NDArray[complex]
-ArrayKey = int | slice | tuple[int | slice]
 
 
 class _AbstractMatrix:
-    def __init__(self, *args: Scalar | ScalarArray) -> None:
+    def __init__(self, *args: Scalar | NDArray[Scalar]) -> None:
         """
         Basic abstract class to construct symmetric matrices classes.
 
         Parameters
         ----------
-        *args : Scalar | ScalarArray
+        *args : Scalar | NDArray[Scalar]
             Coefitients.
 
         """
@@ -52,13 +50,13 @@ class _AbstractMatrix:
         # Applies a funciton over the matrix by eigen-decomposition
         return _constructor_dict[type(self)](*[func(c) for c in self.coefs])
     
-    def __set_coefs(self, *args: Scalar | ScalarArray) -> None:
+    def __set_coefs(self, *args: Scalar | NDArray[Scalar]) -> None:
         self._coefs = args
     
     ###############################################
     #Properties
     @property
-    def coefs(self) -> Scalar | ScalarArray: return self._coefs
+    def coefs(self) -> Scalar | NDArray[Scalar]: return self._coefs
     @property
     def shape(self) -> tuple[int]:
         self.__array_proprtey_check("shape")
@@ -76,9 +74,22 @@ class _AbstractMatrix:
     @property
     def imag(self) -> Self: return _constructor_dict[type(self)](*[c.imag for c in self.coefs])
     @property
-    def eigvals(self) -> tuple[Scalar | ScalarArray]: return (self.coefs[0],)
+    def eigvals(self) -> tuple[Scalar | NDArray[Scalar]]: return (self.coefs[0],)
     @property
-    def trace(self) -> Scalar | ScalarArray: return 0.0
+    def trace(self) -> Scalar | NDArray[Scalar]: return 0.0
+    
+    #################################################
+    # Numpy matrix display
+    def numpy_matrix(self) -> NDArray[Scalar]:
+        """
+        Numpy array representation of matrix.
+
+        Returns
+        -------
+        NDArray[Scalar]
+
+        """
+        return np.eye(len(self.coefs)) * np.array(self.coefs[...,None,None])
     
     #################################################
     #Functions
@@ -213,43 +224,43 @@ class _AbstractMatrix:
     def __neg__(self) -> Self:
         return _constructor_dict[type(self)](*[-c for c in self.coefs])
     
-    def __add__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __add__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self
     
-    def __radd__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __radd__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self.__add__(other)
     
-    def __iadd__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __iadd__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self.__add__(other)
     
-    def __sub__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __sub__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self
     
-    def __rsub__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __rsub__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self
     
-    def __isub__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __isub__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self.__sub__(other)
     
-    def __mul__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __mul__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self
     
-    def __rmul__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __rmul__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self.__mul__(other)
     
-    def __imul__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __imul__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self.__mul__(other)
     
-    def __truediv__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __truediv__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self
     
-    def __rtruediv__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __rtruediv__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self
     
-    def __itruediv__(self, other: Self | Scalar | ScalarArray) -> Self:
+    def __itruediv__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         return self.__truediv__(other)
     
-    def __pow__(self, other: Scalar | ScalarArray) -> Self:
+    def __pow__(self, other: Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, int):
             if other==1:
                 return self
@@ -273,15 +284,15 @@ class _AbstractMatrix:
 
 
 class OhMatrix(_AbstractMatrix):
-    def __init__(self, a: Scalar | ScalarArray, b: Scalar | ScalarArray) -> None:
+    def __init__(self, a: Scalar | NDArray[Scalar], b: Scalar | NDArray[Scalar]) -> None:
         """
         Two coeffitient representation for matrices representing orbital-spin systems conserved under Oh symmetries.
 
         Parameters
         ----------
-        a : Scalar | ScalarArray
+        a : Scalar | NDArray[Scalar]
             Identity coefficient.
-        b : Scalar | ScalarArray
+        b : Scalar | NDArray[Scalar]
             SOC coefficient.
 
         """
@@ -299,15 +310,32 @@ class OhMatrix(_AbstractMatrix):
     ###############################################
     #Properties
     @property
-    def a(self) -> Scalar | ScalarArray: return self._coefs[0]
+    def a(self) -> Scalar | NDArray[Scalar]: return self._coefs[0]
     @property
-    def b(self) -> Scalar | ScalarArray: return self._coefs[1]
+    def b(self) -> Scalar | NDArray[Scalar]: return self._coefs[1]
     @property
-    def coefs(self) -> list[Scalar | ScalarArray]: return [self.a, self.b]
+    def coefs(self) -> list[Scalar | NDArray[Scalar]]: return [self.a, self.b]
     @property
-    def eigvals(self) -> tuple[Scalar | ScalarArray]: return self.a+2*self.b, self.a-self.b
+    def eigvals(self) -> tuple[Scalar | NDArray[Scalar]]: return self.a+2*self.b, self.a-self.b
     @property
-    def trace(self) -> Scalar | ScalarArray: return 6*self.a
+    def trace(self) -> Scalar | NDArray[Scalar]: return 6*self.a
+    
+    #################################################
+    # Numpy matrix display
+    def numpy_matrix(self) -> NDArray[Scalar]:
+        """
+        Numpy array representation of matrix.
+
+        Returns
+        -------
+        NDArray[Scalar]
+
+        """
+        from ..break_sym.__matrices import I,V
+        if super()._is_array:
+            return self.a[...,None,None]*I + self.b[...,None,None]*V
+        else:
+            return self.a*I + self.b*V
     
     #################################################
     #Functions
@@ -331,7 +359,7 @@ class OhMatrix(_AbstractMatrix):
     
     #######################################################
     #Magic methods
-    def __add__(self, other):
+    def __add__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return ohmatrix(self.a+other.a, self.b+other.b)
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -339,7 +367,7 @@ class OhMatrix(_AbstractMatrix):
         else:
             raise TypeError
     
-    def __sub__(self, other):
+    def __sub__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return ohmatrix(self.a-other.a, self.b-other.b)
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -347,7 +375,7 @@ class OhMatrix(_AbstractMatrix):
         else:
             raise TypeError
     
-    def __rsub__(self, other):
+    def __rsub__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return ohmatrix(-self.a+other.a, -self.b+other.b)
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -355,7 +383,7 @@ class OhMatrix(_AbstractMatrix):
         else:
             raise TypeError
     
-    def __mul__(self, other):
+    def __mul__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return ohmatrix(self.a*other.a + 2*self.b*other.b, self.b*other.a + (self.a+self.b)*other.b)
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -363,7 +391,7 @@ class OhMatrix(_AbstractMatrix):
         else:
             raise TypeError
     
-    def __truediv__(self, other):
+    def __truediv__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return self * other**-1
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -371,7 +399,7 @@ class OhMatrix(_AbstractMatrix):
         else:
             raise TypeError
     
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return self.inv() * other
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -395,7 +423,7 @@ class OhMatrix(_AbstractMatrix):
         else:
             raise NotImplementedError
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"OhMatrix({self.a}, {self.b})"
 
 
