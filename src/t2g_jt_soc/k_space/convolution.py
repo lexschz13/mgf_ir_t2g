@@ -8,7 +8,7 @@ from collections.abc import Iterable
 
 
 def k_convolution(gk: np.ndarray, fk: np.ndarray, kdim: int = 3,
-                  g_axes: int | Iterable[int] = (-3,-2,-1), f_axes: int | Iterable[int] = (-3,-2,-1),
+                  g_axes: int | Iterable[int] = -1, f_axes: int | Iterable[int] = -1,
                   einidxs: None | str = None) -> np.ndarray:
     """
     Uses fast fourier transform (integrated on numpy) to perform convolutions on k-space.
@@ -27,10 +27,10 @@ def k_convolution(gk: np.ndarray, fk: np.ndarray, kdim: int = 3,
         The default is 3.
     g_axes : int | Iterable[int]
         Axes where k-dimensions are encoded at first argument.
-        The default is (-3,-2,-1).
+        The default is tuple(d for d in range(-kdim,0)).
     f_axes : int | Iterable[int]
         Axes where k-dimensions are encoded at second argument.
-        The default is (-3,-2,-1).
+        The default is tuple(d for d in range(-kdim,0)).
     einidxs : None | str, optional
         Indices passed to :func:"np.einsum" if there is a matrix or tensor structure to be multiplied on convolution.
         If None element-wise multiplication is used.
@@ -45,6 +45,11 @@ def k_convolution(gk: np.ndarray, fk: np.ndarray, kdim: int = 3,
     """
     if kdim < 1:
         raise ValueError("Dimension of reciprocal space must be positive and non-zero")
+    
+    if g_axes==-1 and kdim!=1:
+        g_axes = tuple(d for d in range(-kdim,0))
+    if f_axes==-1 and kdim!=1:
+        f_axes = tuple(d for d in range(-kdim,0))
     
     gk = axes_push(gk, g_axes)
     fk = axes_push(fk, f_axes)

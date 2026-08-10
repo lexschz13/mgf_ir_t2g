@@ -23,7 +23,7 @@ def interpBZ(f: np.ndarray, kdim: int = 3, axes: int | Iterable[int] = (-3,-2,-1
         The default is 3.
     axes : int | Iterable[int]
         Axes where k-dimensions are encoded.
-        The default is (-3,-2,-1).
+        The default is tuple(d for d in range(-kdim,0)).
     superdomain : int, optional
         Number of cells expanden at every direction to simulate periodicity.
         It must be odd, so it is corrected with -1 if it is even.
@@ -46,6 +46,8 @@ def interpBZ(f: np.ndarray, kdim: int = 3, axes: int | Iterable[int] = (-3,-2,-1
     """
     if kdim < 1:
         raise ValueError("Dimension of reciprocal space must be positive and non-zero")
+    if axes==-1 and kdim!=1:
+        axes = tuple(d for d in range(-kdim,0))
     f = axes_push(f, axes)
     struct_shape = f.shape[:-kdim]
     k_shape = f.shape[-kdim:]

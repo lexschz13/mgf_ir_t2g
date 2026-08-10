@@ -1,8 +1,25 @@
 import numpy as np
+from numpy.typing import NDArray
+
+from typing import Any, Self, Iterable
+
+
+Scalar = int | float | complex
+ScalarArray = NDArray[int] | NDArray[float] | NDArray[complex]
+ArrayKey = int | slice | tuple[int | slice]
 
 
 class _AbstractMatrix:
-    def __init__(self, *args):
+    def __init__(self, *args: Scalar | ScalarArray) -> None:
+        """
+        Basic abstract class to construct symmetric matrices classes.
+
+        Parameters
+        ----------
+        *args : Scalar | ScalarArray
+            Coefitients.
+
+        """
         self._coefs = args
         if np.all([isinstance(c, (int,float,complex)) for c in self._coefs]):
             self._is_array = False
@@ -25,134 +42,214 @@ class _AbstractMatrix:
     
     ###############################################
     #Auxiliar
-    def __array_proprtey_check(self, p_name):
+    def __array_proprtey_check(self, p_name: str) -> None:
         if self._is_array:
             return
         else:
             raise AttributeError("This Matrix is a scalar, %s holds for an array" % p_name)
     
-    def _apply_func(self, func):
-        return
+    def _apply_func(self, func: callable) -> Self:
+        # Applies a funciton over the matrix by eigen-decomposition
+        return _constructor_dict[type(self)](*[func(c) for c in self.coefs])
     
-    def __set_coefs(self, *args):
+    def __set_coefs(self, *args: Scalar | ScalarArray) -> None:
         self._coefs = args
     
     ###############################################
     #Properties
     @property
-    def coefs(self): return self._coefs
+    def coefs(self) -> Scalar | ScalarArray: return self._coefs
     @property
-    def shape(self):
+    def shape(self) -> tuple[int]:
         self.__array_proprtey_check("shape")
         return self.coefs[0].shape
     @property
-    def size(self):
+    def size(self) -> int:
         self.__array_proprtey_check("size")
         return self.coefs[0].size
     @property
-    def ndim(self):
+    def ndim(self) -> int:
         self.__array_proprtey_check("ndim")
         return self.coefs[0].ndim
     @property
-    def real(self): return _constructor_dict[type(self)](*[c.real for c in self.coefs])
+    def real(self) -> Self: return _constructor_dict[type(self)](*[c.real for c in self.coefs])
     @property
-    def imag(self): return _constructor_dict[type(self)](*[c.imag for c in self.coefs])
+    def imag(self) -> Self: return _constructor_dict[type(self)](*[c.imag for c in self.coefs])
     @property
-    def eigvals(self): return
+    def eigvals(self) -> tuple[Scalar | ScalarArray]: return (self.coefs[0],)
     @property
-    def trace(self): return
+    def trace(self) -> Scalar | ScalarArray: return 0.0
     
     #################################################
     #Functions
-    def inv(self):
-        return
+    def inv(self) -> Self:
+        """
+        Iverse of the matrix.
+
+        Returns
+        -------
+        Self
+
+        """
+        return _constructor_dict[type(self)](*[1/c for c in self.coefs])
         
-    def exp(self):
+    def exp(self) -> Self:
+        """
+        Exponentia of the matrixl.
+
+        Returns
+        -------
+        Self
+
+        """
         return self._apply_func(np.exp)
     
-    def cos(self):
+    def cos(self) -> Self:
+        """
+        Cosine of the matrix.
+
+        Returns
+        -------
+        Self
+
+        """
         return self._apply_func(np.cos)
     
-    def sin(self):
+    def sin(self) -> Self:
+        """
+        Sine of the matrix.
+
+        Returns
+        -------
+        Self
+
+        """
         return self._apply_func(np.sin)
     
-    def tan(self):
+    def tan(self) -> Self:
+        """
+        Tangent of the matrix.
+
+        Returns
+        -------
+        Self
+
+        """
         return self._apply_func(np.tan)
     
-    def log(self):
+    def log(self) -> Self:
+        """
+        Natural logarithm of the matrix.
+
+        Returns
+        -------
+        Self
+
+        """
         return self._apply_func(np.log)
     
-    def sqrt(self):
+    def sqrt(self) -> Self:
+        """
+        Squared root of the matrix.
+
+        Returns
+        -------
+        Self
+
+        """
         return self._apply_func(np.sqrt)
     
-    def cbrt(self):
+    def cbrt(self) -> Self:
+        """
+        Cubic root of the matrix.
+
+        Returns
+        -------
+        Self
+
+        """
         return self._apply_func(np.cbrt)
     
     ##########################################################
     #Array methods
-    def reshape(self, newsh, **kwargs):
+    def reshape(self, newsh: Iterable[int], **kwargs: Any) -> Self:
+        """
+        Reshapes matrix coeficients only if they are arrays.
+
+        Parameters
+        ----------
+        newsh : Iterable[int]
+            New shape.
+        **kwargs : Any
+            :func:np.reshape keargs.
+
+        Returns
+        -------
+        Self
+
+        """
         self.__array_proprtey_check("reshape")
         return _constructor_dict[type(self)](*[c.reshape(newsh, **kwargs) for c in self.coefs])
     
-    def __getitem__(self, key):
+    def __getitem__(self, key: ArrayKey) -> Self:
         if self._is_array:
             return _constructor_dict[type(self)](*[c[key] for c in self.coefs])
         else:
             raise IndexError("Non-array OhMatrix does not accept indexing")
     
-    def __setitem__(self, key, item):
+    def __setitem__(self, key: ArrayKey, item: Self) -> Self:
         if not self._is_array:
             raise IndexError("Non-array OhMatrix does not accept indexing")
         if type(item) != type(self):
-            raise TypeError
+            raise TypeError("Cannot set this objetc elements on this matrix")
         for i in range(len(self.coefs)):
             self._coefs[i][key] = item.coefs[i]
     
     #######################################################
     #Magic methods
-    def __pos__(self):
+    def __pos__(self) -> Self:
         return _constructor_dict[type(self)](*self.coefs)
     
-    def __neg__(self):
+    def __neg__(self) -> Self:
         return _constructor_dict[type(self)](*[-c for c in self.coefs])
     
-    def __add__(self, other):
-        return
+    def __add__(self, other: Self | Scalar | ScalarArray) -> Self:
+        return self
     
-    def __radd__(self, other):
+    def __radd__(self, other: Self | Scalar | ScalarArray) -> Self:
         return self.__add__(other)
     
-    def __iadd__(self, other):
+    def __iadd__(self, other: Self | Scalar | ScalarArray) -> Self:
         return self.__add__(other)
     
-    def __sub__(self, other):
-        return
+    def __sub__(self, other: Self | Scalar | ScalarArray) -> Self:
+        return self
     
-    def __rsub__(self, other):
-        return
+    def __rsub__(self, other: Self | Scalar | ScalarArray) -> Self:
+        return self
     
-    def __isub__(self, other):
+    def __isub__(self, other: Self | Scalar | ScalarArray) -> Self:
         return self.__sub__(other)
     
-    def __mul__(self, other):
-        return
+    def __mul__(self, other: Self | Scalar | ScalarArray) -> Self:
+        return self
     
-    def __rmul__(self, other):
+    def __rmul__(self, other: Self | Scalar | ScalarArray) -> Self:
         return self.__mul__(other)
     
-    def __imul__(self, other):
+    def __imul__(self, other: Self | Scalar | ScalarArray) -> Self:
         return self.__mul__(other)
     
-    def __truediv__(self, other):
-        return
+    def __truediv__(self, other: Self | Scalar | ScalarArray) -> Self:
+        return self
     
-    def __rtruediv__(self, other):
-        return
+    def __rtruediv__(self, other: Self | Scalar | ScalarArray) -> Self:
+        return self
     
-    def __itruediv__(self, other):
+    def __itruediv__(self, other: Self | Scalar | ScalarArray) -> Self:
         return self.__truediv__(other)
     
-    def __pow__(self, other):
+    def __pow__(self, other: Scalar | ScalarArray) -> Self:
         if isinstance(other, int):
             if other==1:
                 return self
@@ -167,24 +264,24 @@ class _AbstractMatrix:
         else:
             raise NotImplementedError
     
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        return
+    def __array_ufunc__(self, ufunc: callable, method: str, *inputs: Any, **kwargs: Any) -> Self:
+        return self
     
-    def __repr__(self):
-        return
+    def __repr__(self) -> str:
+        return "_Abstract"
 
 
 
 class OhMatrix(_AbstractMatrix):
-    def __init__(self, a, b):
+    def __init__(self, a: Scalar | ScalarArray, b: Scalar | ScalarArray) -> None:
         """
         Two coeffitient representation for matrices representing orbital-spin systems conserved under Oh symmetries.
 
         Parameters
         ----------
-        a : int,float,complex,np.ndarray[int,float,complex]
+        a : Scalar | ScalarArray
             Identity coefficient.
-        b : int,float,complex,np.ndarray[int,float,complex]
+        b : Scalar | ScalarArray
             SOC coefficient.
 
         """
@@ -194,7 +291,7 @@ class OhMatrix(_AbstractMatrix):
     ###############################################
     #Auxiliar
     
-    def _apply_func(self, func):
+    def _apply_func(self, func: callable) -> Self:
         c = (func(self.a+2*self.b) + 2*func(self.a-self.b))/3
         d = (func(self.a+2*self.b) - func(self.a-self.b))/3
         return ohmatrix(c, d)
@@ -202,19 +299,27 @@ class OhMatrix(_AbstractMatrix):
     ###############################################
     #Properties
     @property
-    def a(self): return self._coefs[0]
+    def a(self) -> Scalar | ScalarArray: return self._coefs[0]
     @property
-    def b(self): return self._coefs[1]
+    def b(self) -> Scalar | ScalarArray: return self._coefs[1]
     @property
-    def coefs(self): return [self.a, self.b]
+    def coefs(self) -> list[Scalar | ScalarArray]: return [self.a, self.b]
     @property
-    def eigvals(self): return self.a+2*self.b, self.a-self.b
+    def eigvals(self) -> tuple[Scalar | ScalarArray]: return self.a+2*self.b, self.a-self.b
     @property
-    def trace(self): return 6*self.a
+    def trace(self) -> Scalar | ScalarArray: return 6*self.a
     
     #################################################
     #Functions
-    def inv(self):
+    def inv(self) -> Self:
+        """
+        Iverse of the matrix.
+
+        Returns
+        -------
+        Self
+
+        """
         denom = self.a*self.a-2*self.b*self.b+self.a*self.b
         c = (self.a+self.b)/denom
         d = -self.b/denom
@@ -274,7 +379,7 @@ class OhMatrix(_AbstractMatrix):
         else:
             raise TypeError
     
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+    def __array_ufunc__(self, ufunc: callable, method: str, *inputs: Any, **kwargs: Any)-> Self:
         if ufunc.nin == 1:
             return self._apply_func(ufunc)
         if ufunc in [np.add, np.subtract]:

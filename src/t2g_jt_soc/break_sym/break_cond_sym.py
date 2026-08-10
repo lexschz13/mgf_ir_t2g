@@ -35,7 +35,7 @@ def GD2h(dy_solver: DysonSolver, angle: float, mode: str = 't') -> NDArray:
     -------
     np.ndarray
         Matrix representation of distorted Green's function.
-        Matrix axes are the first two.
+        Matrix axes are the last two (compatible with :func:"np.matmul").
 
     """
     
@@ -74,12 +74,12 @@ def GD2h(dy_solver: DysonSolver, angle: float, mode: str = 't') -> NDArray:
     ykl = smat.fit(gammakiw*(gammakiw-qkiw)/deltakiw, axis=0).real
     zkl = smat.fit(gammakiw*(gammakiw-rkiw)/deltakiw, axis=0).real
     
-    return (+ akl[None,None,...] * ax[:,:,None,None,None,None]
-            + bkl[None,None,...] * ay[:,:,None,None,None,None]
-            + ckl[None,None,...] * az[:,:,None,None,None,None]
-            - xkl[None,None,...] * Lx[:,:,None,None,None,None]
-            - ykl[None,None,...] * Ly[:,:,None,None,None,None]
-            - zkl[None,None,...] * Lz[:,:,None,None,None,None]
+    return (+ akl[...,None,None] * ax.reshape(akl.ndim*(1,) + ax.shape)
+            + bkl[...,None,None] * ay.reshape(bkl.ndim*(1,) + ay.shape)
+            + ckl[...,None,None] * az.reshape(ckl.ndim*(1,) + az.shape)
+            - xkl[...,None,None] * Lx.reshape(xkl.ndim*(1,) + Lx.shape)
+            - ykl[...,None,None] * Ly.reshape(ykl.ndim*(1,) + Ly.shape)
+            - zkl[...,None,None] * Lz.reshape(zkl.ndim*(1,) + Lz.shape)
             )
 
 
@@ -124,63 +124,52 @@ def Gspin_proj(dy_solver, angle, jt_mode):
     
     print("Breaking G symmetry")
     Gkl_D2h_iso = GD2h(dy_solver, angle, jt_mode)
-    k_sz = Gkl.shape[1]
-    ky,kx,kz = np.meshgrid(*(np.arange(0,2*np.pi,2*np.pi/k_sz),)*3)
-    # sin = np.sin(np.array([kx,ky,kz]))
-    # cos = np.cos(np.array([kx,ky,kz]))
-    # upsx = 6*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[0,0]) / k_sz**3
-    # upsy = 6*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[2,2]) / k_sz**3
-    # upsz = 6*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[4,4]) / k_sz**3
+    latt_shape = dy_solver.latt_shape
+    latt_size = dy_solver.latt_size
+    kx,ky,kz = tuple(np.arange(0,2*np.pi,2*np.pi/latt_shape[i]) for i in range(len(latt_shape)))
+    ky,kx,kz = np.meshgrid(ky,kx,kz)
     A = np.array([[1,-1,0],
                   [np.sqrt(1/3), np.sqrt(1/3), -np.sqrt(4/3)],
                   [1,1,1]])
-    qx = -2*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[0,0]) / k_sz**3
-    qy = -2*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[2,2]) / k_sz**3
-    qz = -2*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[4,4]) / k_sz**3
+    qx = -2*np.sum(irbf.u(beta).reshape((irbf.size,) + (1,)*len(latt_shape)) * Gkl_D2h_iso[...,0,0]) / latt_size
+    qy = -2*np.sum(irbf.u(beta).reshape((irbf.size,) + (1,)*len(latt_shape)) * Gkl_D2h_iso[...,2,2]) / latt_size
+    qz = -2*np.sum(irbf.u(beta).reshape((irbf.size,) + (1,)*len(latt_shape)) * Gkl_D2h_iso[...,4,4]) / latt_size
     
     Q3 = qx - qy
     Q8 = (qx + qy - 2*qz) / np.sqrt(3)
     
     upsx, upsy, upsz = np.linalg.inv(A) @ np.array([Q3, Q8, 0])
-    # ups = np.array([upsx, upsy, upsz])
     
     print("Adding hopping anisotropy")
     Gkiw = matrixevaluate(smatf, Gkl, axis=0)
     Gkiw = (Gkiw**-1 + 2*t * (upsx*np.cos(kx) + upsy*np.cos(ky) + upsz*np.cos(kz)))**-1
     Gkl = matrixfit(smatf, Gkiw, axis=0).real
     Gkl_jt = GD2h(Gkl, angle, ejt, smatf, jt_mode)
-    Gktau_jt = stauf.evaluate(Gkl_jt, axis=2)
-    Gkiw_jt = smatf.evaluate(Gkl_jt, axis=2)
+    Gktau_jt = stauf.evaluate(Gkl_jt, axis=0)
+    Gkiw_jt = smatf.evaluate(Gkl_jt, axis=0)
     
     # Projection
     print("Computing dynamical projections")
-    _tmp1 = np.einsum("aij,jk...->aik...", pauli_cross, Gktau_jt, optimize=True)
-    _tmp2 = np.einsum("aij...,aji...->a...", _tmp1, -_tmp1[:,:,:,::-1], optimize=True)
-    psiktau = np.einsum("a...,aij->aij...", _tmp2, pauli_cross, optimize=True)
+    _tmp1 = pauli_cross @ Gktau_jt[...,None,:,:] # (Gstruct,spin_axes,matrix,matrix)
+    _tmp2 = np.trace(_tmp1 - _tmp1[::-1]) # (Gstruct,spin_axes)
+    psiktau = _tmp2 * pauli_cross # (Gstruct,spin_axes,matrix,matrix)
     del _tmp1, _tmp2
-    # psiktau = np.einsum("aij,jk...,akl,li...,axy->axy...", pauli_cross, Gktau_jt, pauli_cross, -Gktau_jt[:,:,::-1], pauli_cross, optimize=True)
-    # psikl = stauf.fit(psiktau, axis=3)
     
     # Self-energy
     print("Computing self-energy")
-    sesktau = k_convolution(Gktau_jt, psiktau, einidxs="ij...,ajk...->ik...")
-    seskl = stauf.fit(sesktau, axis=2)
+    sesktau = k_convolution(Gktau_jt, psiktau, axes=(1,2,3), einidxs="tij...,tajk...->tik...") # (Gstruct,matrix,matrix)
+    seskl = stauf.fit(sesktau, axis=0)
     # if get_se:
     #     return seskl
     del sesktau
-    seskiw = smatf.evaluate(seskl, axis=2)
+    seskiw = smatf.evaluate(seskl, axis=0)
     # del seskl
-    
-    # New Green
-    # print("Computing spin projected Green's function")
-    # Gkiw_s = (Gkiw_jt**-1 - seskiw)**-1
-    # Gkl_s = stauf.evaluate(Gkiw_s, axis=2)
     
     # 1st order Green expansion
     print("Computing 1st order exmapnsion of Green's funciton")
-    G1kiw = np.einsum("ij...,jk...,kl...->il...", Gkiw_jt, seskiw, Gkiw_jt, optimize=True)
+    G1kiw = Gkiw_jt @ seskiw @ Gkiw_jt # (Gstruct,matrix,matrix)
     del seskiw
-    G1kl = smatf.fit(G1kiw, axis=2)
+    G1kl = smatf.fit(G1kiw, axis=0) # (Gstruct,matrix,matrix)
     
     return Gkl_jt, G1kl, seskl
 
@@ -217,124 +206,120 @@ def conductivity_mo(dy_solver, angle, jt_mode, alpha=10**-1.1, guess=None, solve
         Antisymmetric conductivity tensor on ir-basis.
 
     """
-    Gkl = dy_solver.gkl
     irbf = dy_solver.irbf
     beta = dy_solver.beta
     stauf = dy_solver.stauf
     smatf = dy_solver.smatf
     staub = dy_solver.staub
     
-    k_sz = Gkl.shape[1]
-    ky,kx,kz = np.meshgrid(*(np.arange(0,2*np.pi,2*np.pi/k_sz),)*3)
+    latt_shape = dy_solver.latt_shape
+    latt_size = dy_solver.latt_size
+    kx,ky,kz = tuple(np.arange(0,2*np.pi,2*np.pi/latt_shape[i]) for i in range(len(latt_shape)))
+    ky,kx,kz = np.meshgrid(ky,kx,kz)
     sin = np.sin(np.array([kx,ky,kz]))
     
     Gkl_D2h_iso = GD2h(dy_solver, angle, jt_mode)
     A = np.array([[1,-1,0],
                   [np.sqrt(1/3), np.sqrt(1/3), -np.sqrt(4/3)],
                   [1,1,1]])
-    qx = -2*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[0,0]) / k_sz**3
-    qy = -2*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[2,2]) / k_sz**3
-    qz = -2*np.sum(irbf.u(beta)[:,None,None,None] * Gkl_D2h_iso[4,4]) / k_sz**3
+    qx = -2*np.sum(irbf.u(beta).reshape((irbf.size,) + (1,)*len(latt_shape)) * Gkl_D2h_iso[...,0,0]) / latt_size
+    qy = -2*np.sum(irbf.u(beta).reshape((irbf.size,) + (1,)*len(latt_shape)) * Gkl_D2h_iso[...,2,2]) / latt_size
+    qz = -2*np.sum(irbf.u(beta).reshape((irbf.size,) + (1,)*len(latt_shape)) * Gkl_D2h_iso[...,4,4]) / latt_size
     
     Q3 = qx - qy
     Q8 = (qx + qy - 2*qz) / np.sqrt(3)
     
     upsx, upsy, upsz = np.linalg.inv(A) @ np.array([Q3, Q8, 0])
-    ups = np.array([upsx, upsy, upsz])
+    ups = np.array([upsx, upsy, upsz]) # (hoppings,)
     
-    Gkl_jt, G1kl, seskl = Gspin_proj(dy_solver, angle, jt_mode)
+    Gkl_jt, G1kl, seskl = Gspin_proj(dy_solver, angle, jt_mode) # (Gstruct,matrix,matrix)
     del seskl
-    Gktau_jt = stauf.evaluate(Gkl_jt, axis=2)
-    Gkiw_jt = smatf.evaluate(Gkl_jt, axis=2)
-    G1ktau = stauf.evaluate(G1kl, axis=2)
-    G1kiw = smatf.evaluate(G1kl, axis=2)
+    Gktau_jt = stauf.evaluate(Gkl_jt, axis=0)
+    Gkiw_jt = smatf.evaluate(Gkl_jt, axis=0)
+    G1ktau = stauf.evaluate(G1kl, axis=0)
+    G1kiw = smatf.evaluate(G1kl, axis=0)
     
     # Projection
     print("Computing dynamical projections")
-    _tmp1 = np.einsum("aij,jk...->aik...", pauli_cross, Gktau_jt, optimize=True)
-    _tmp2 = np.einsum("aij...,aji...->a...", _tmp1, -_tmp1[:,:,:,::-1], optimize=True)
-    psiktau = np.einsum("a...,aij->aij...", _tmp2, pauli_cross, optimize=True)
+    _tmp1 = pauli_cross @ Gktau_jt[...,None,:,:] # (Gstruct,spin_axes,matrix,matrix)
+    _tmp2 = np.trace(_tmp1 - _tmp1[::-1]) # (Gstruct,spin_axes)
+    psiktau = _tmp2 * pauli_cross # (Gstruct,spin_axes,matrix,matrix)
     del _tmp1, _tmp2
     
     # Current
     print("Computing current")
-    jk = sin * ups[:,None,None,None]
-    GGkiw_jt = np.einsum("ij...,jk...->ik...", Gkiw_jt, Gkiw_jt, optimize=True)
-    dkx_Gkiw_jt = -np.einsum("ijw...,...->ijw...", GGkiw_jt, jk[0], optimize=True)
-    dky_Gkiw_jt = -np.einsum("ijw...,...->ijw...", GGkiw_jt, jk[1], optimize=True)
-    dkz_Gkiw_jt = -np.einsum("ijw...,...->ijw...", GGkiw_jt, jk[2], optimize=True)
+    jk = sin * ups.reshape((3,)+(1,)*len(latt_shape)) # (hoppings,k-dims)
+    GGkiw_jt = Gkiw_jt @ Gkiw_jt # (Gstruct,matrix,matrix)
+    dkx_Gkiw_jt = -GGkiw_jt * jk[0,None,...,None,None] # (Gstruct,matrix,matrix)
+    dky_Gkiw_jt = -GGkiw_jt * jk[1,None,...,None,None] # (Gstruct,matrix,matrix)
+    dkz_Gkiw_jt = -GGkiw_jt * jk[2,None,...,None,None] # (Gstruct,matrix,matrix)
     del GGkiw_jt
-    # dk_Gkiw_jt = -np.einsum("ijw...,a,a...,jkw...->aikw...", Gkiw_jt, ups, sin, Gkiw_jt, optimize=True)
-    dkx_Gkl_jt = smatf.fit(dkx_Gkiw_jt, axis=2)
-    dky_Gkl_jt = smatf.fit(dky_Gkiw_jt, axis=2)
-    dkz_Gkl_jt = smatf.fit(dkz_Gkiw_jt, axis=2)
+    dkx_Gkl_jt = smatf.fit(dkx_Gkiw_jt, axis=0)
+    dky_Gkl_jt = smatf.fit(dky_Gkiw_jt, axis=0)
+    dkz_Gkl_jt = smatf.fit(dkz_Gkiw_jt, axis=0)
     del dkx_Gkiw_jt,dky_Gkiw_jt,dkz_Gkiw_jt
     #
-    dkx_Gktau_jt = stauf.evaluate(dkx_Gkl_jt, axis=2)
-    dky_Gktau_jt = stauf.evaluate(dky_Gkl_jt, axis=2)
-    dkz_Gktau_jt = stauf.evaluate(dkz_Gkl_jt, axis=2)
+    dkx_Gktau_jt = stauf.evaluate(dkx_Gkl_jt, axis=0)
+    dky_Gktau_jt = stauf.evaluate(dky_Gkl_jt, axis=0)
+    dkz_Gktau_jt = stauf.evaluate(dkz_Gkl_jt, axis=0)
     del dkx_Gkl_jt,dky_Gkl_jt,dkz_Gkl_jt
     #
-    djxktau = k_convolution(dkx_Gktau_jt, psiktau, einidxs="ij...,ajk...->ik...")
-    djyktau = k_convolution(dky_Gktau_jt, psiktau, einidxs="ij...,ajk...->ik...")
-    djzktau = k_convolution(dkz_Gktau_jt, psiktau, einidxs="ij...,ajk...->ik...")
+    djxktau = k_convolution(dkx_Gktau_jt, psiktau, axes=(1,2,3), einidxs="tij...,tajk...->tik...") # (Gstruct,matrix,matrix)
+    djyktau = k_convolution(dky_Gktau_jt, psiktau, axes=(1,2,3), einidxs="tij...,tajk...->tik...") # (Gstruct,matrix,matrix)
+    djzktau = k_convolution(dkz_Gktau_jt, psiktau, axes=(1,2,3), einidxs="tij...,tajk...->tik...") # (Gstruct,matrix,matrix)
     del dkx_Gktau_jt,dky_Gktau_jt,dkz_Gktau_jt
-    djxkl = stauf.fit(djxktau, axis=2)
-    djykl = stauf.fit(djyktau, axis=2)
-    djzkl = stauf.fit(djzktau, axis=2)
+    djxkl = stauf.fit(djxktau, axis=0)
+    djykl = stauf.fit(djyktau, axis=0)
+    djzkl = stauf.fit(djzktau, axis=0)
     del djxktau, djyktau, djzktau
-    djxkiw = smatf.evaluate(djxkl, axis=2)
-    djykiw = smatf.evaluate(djykl, axis=2)
-    djzkiw = smatf.evaluate(djzkl, axis=2)
-    # djkbeta = np.einsum("l,rijl...->rij...", irbf.u(beta), djkl, optimize=True)
+    djxkiw = smatf.evaluate(djxkl, axis=0)
+    djykiw = smatf.evaluate(djykl, axis=0)
+    djzkiw = smatf.evaluate(djzkl, axis=0)
     del djxkl, djykl, djzkl
     
     # Current-Green conv
     print("Computing current-green convolution")
-    Fxkiw = np.einsum("ij...,jk...->ik...", djxkiw, Gkiw_jt, optimize=True)
-    Fykiw = np.einsum("ij...,jk...->ik...", djykiw, Gkiw_jt, optimize=True)
-    Fzkiw = np.einsum("ij...,jk...->ik...", djzkiw, Gkiw_jt, optimize=True)
-    Fxkl = smatf.fit(Fxkiw, axis=2)
-    Fykl = smatf.fit(Fykiw, axis=2)
-    Fzkl = smatf.fit(Fzkiw, axis=2)
+    Fxkiw = djxkiw @ Gkiw_jt # (Gstruct,matrix,matrix)
+    Fykiw = djykiw @ Gkiw_jt # (Gstruct,matrix,matrix)
+    Fzkiw = djzkiw @ Gkiw_jt # (Gstruct,matrix,matrix)
+    Fxkl = smatf.fit(Fxkiw, axis=0)
+    Fykl = smatf.fit(Fykiw, axis=0)
+    Fzkl = smatf.fit(Fzkiw, axis=0)
     del Fxkiw,Fykiw,Fzkiw
-    Fxktau = stauf.evaluate(Fxkl, axis=2)
-    Fyktau = stauf.evaluate(Fykl, axis=2)
-    Fzktau = stauf.evaluate(Fzkl, axis=2)
+    Fxktau = stauf.evaluate(Fxkl, axis=0)
+    Fyktau = stauf.evaluate(Fykl, axis=0)
+    Fzktau = stauf.evaluate(Fzkl, axis=0)
     del Fxkl,Fykl,Fzkl
-    Hxkiw = np.einsum("ij...,jk...->ik...", djxkiw, G1kiw, optimize=True)
-    Hykiw = np.einsum("ij...,jk...->ik...", djykiw, G1kiw, optimize=True)
-    Hzkiw = np.einsum("ij...,jk...->ik...", djzkiw, G1kiw, optimize=True)
+    Hxkiw = djxkiw @ G1kiw # (Gstruct,matrix,matrix)
+    Hykiw = djykiw @ G1kiw # (Gstruct,matrix,matrix)
+    Hzkiw = djzkiw @ G1kiw # (Gstruct,matrix,matrix)
     del djxkiw, djykiw, djzkiw
-    Hxkl = smatf.fit(Hxkiw, axis=2)
-    Hykl = smatf.fit(Hykiw, axis=2)
-    Hzkl = smatf.fit(Hzkiw, axis=2)
+    Hxkl = smatf.fit(Hxkiw, axis=0)
+    Hykl = smatf.fit(Hykiw, axis=0)
+    Hzkl = smatf.fit(Hzkiw, axis=0)
     del Hxkiw,Hykiw,Hzkiw
-    Hxktau = stauf.evaluate(Hxkl, axis=2)
-    Hyktau = stauf.evaluate(Hykl, axis=2)
-    Hzktau = stauf.evaluate(Hzkl, axis=2)
+    Hxktau = stauf.evaluate(Hxkl, axis=0)
+    Hyktau = stauf.evaluate(Hykl, axis=0)
+    Hzktau = stauf.evaluate(Hzkl, axis=0)
     del Hxkl,Hykl,Hzkl
     
     # Susceptibility
     print("Computing susceptibility")
-    chixktau = np.einsum("...,ijt...,jit...->t...", jk[1], G1ktau, Fzktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[2], G1ktau, Fyktau[:,:,::-1], optimize=True)
-    chiyktau = np.einsum("...,ijt...,jit...->t...", jk[2], G1ktau, Fxktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[0], G1ktau, Fzktau[:,:,::-1], optimize=True)
-    chizktau = np.einsum("...,ijt...,jit...->t...", jk[0], G1ktau, Fyktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[1], G1ktau, Fxktau[:,:,::-1], optimize=True)
-    #
-    chixktau += np.einsum("...,ijt...,jit...->t...", jk[1], Gktau_jt, Hzktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[2], Gktau_jt, Hyktau[:,:,::-1], optimize=True)
-    chiyktau += np.einsum("...,ijt...,jit...->t...", jk[2], Gktau_jt, Hxktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[0], Gktau_jt, Hzktau[:,:,::-1], optimize=True)
-    chizktau += np.einsum("...,ijt...,jit...->t...", jk[0], Gktau_jt, Hyktau[:,:,::-1], optimize=True) - np.einsum("...,ijt...,jit...->t...", jk[1], Gktau_jt, Hxktau[:,:,::-1], optimize=True)
-    #
-    chixktau += np.einsum("ijt...,jit...->t...", Fyktau, Fzktau[:,:,::-1])
-    chiyktau += np.einsum("ijt...,jit...->t...", Fzktau, Fxktau[:,:,::-1])
-    chizktau += np.einsum("ijt...,jit...->t...", Fxktau, Fyktau[:,:,::-1])
-    # _temp = np.einsum("abc,b...->ac...", levi_civitta, jk, optimize=True)
-    # chiktau = np.einsum("ac...,ijt...,cjit...->at...", _temp, G1ktau, Fktau[:,:,:,::-1,...], optimize=True)
-    # chiktau += np.einsum("ac...,ijt...,cjit...->at...", _temp, Gktau_jt, Hktau[:,:,:,::-1,...], optimize=True)
-    # chiktau = np.einsum("abc,b...,ijt...,cjit...->at...", levi_civitta, jk, G1ktau, Fktau[:,:,:,::-1,...], optimize=True)
-    # chiktau += np.einsum("abc,b...,ijt...,cjit...->at...", levi_civitta, jk, Gktau_jt, Hktau[:,:,:,::-1,...], optimize=True)
+    chixktau = (
+        jk[1,None,...]*np.trace(G1ktau @ Fzktau[::-1] + Gktau_jt @ Hzktau[::-1]) -
+        jk[2,None,...]*np.trace(G1ktau @ Fyktau[::-1] + Gktau_jt @ Hyktau[::-1])
+        ) + np.trace(Fyktau @ Fzktau[::-1])
+    chiyktau = (
+        jk[2,None,...]*np.trace(G1ktau @ Fxktau[::-1] + Gktau_jt @ Hxktau[::-1]) -
+        jk[0,None,...]*np.trace(G1ktau @ Fzktau[::-1] + Gktau_jt @ Hzktau[::-1])
+        ) + np.trace(Fzktau @ Fxktau[::-1])
+    chizktau = (
+        jk[0,None,...]*np.trace(G1ktau @ Fyktau[::-1] + Gktau_jt @ Hyktau[::-1]) -
+        jk[1,None,...]*np.trace(G1ktau @ Fxktau[::-1] + Gktau_jt @ Hxktau[::-1])
+        ) + np.trace(Fxktau @ Fyktau[::-1])
+
     chiktau = np.array([chixktau,chiyktau,chizktau])
-    chikl = staub.fit(chiktau)
+    chikl = staub.fit(chiktau, axis=1)
     
     recondl = boson_continuation(chikl - chikl[:,::-1], alpha, axis=1, guess=guess, solver=solver)
     imcondl = hilbert_ir(recondl, dy_solver.irbb)
