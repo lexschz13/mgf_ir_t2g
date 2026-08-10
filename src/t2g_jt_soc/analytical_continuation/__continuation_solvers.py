@@ -3,7 +3,7 @@ from numpy.typing import NDArray
 from sparse_ir import FiniteTempBasis
 from scipy.optimize import minimize
 from scipy.integrate import quad_vec, quad
-from .__utils import axis_pull, axis_push
+from ..__utils.__utils import axis_pull, axis_push
 
 from typing import TypeVar
 NDArray1D = np.ndarray[tuple[np.number], np.dtype[TypeVar("DType", bound=np.generic)]]

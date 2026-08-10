@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from .convolution import k_convolution
 from ..sym_matrix import matrixsum

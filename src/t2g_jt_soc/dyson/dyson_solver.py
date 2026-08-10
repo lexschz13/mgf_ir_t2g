@@ -10,11 +10,11 @@ from ..sym_matrix import (ohmatrix,
 # from ..sym_matrix.sym_matrix import ohmatrix, ohzeros
 # from ..sym_matrix.ir_utils import matrixfit, matrixevaluate
 # from ..sym_matrix.array_utils import matrixcopy, matrixsum
-from .__utils import (check_discrete_parameter,
-                      check_physical_param,
-                      check_shape,
-                      fprint,
-                      frobenius_inner)
+from ..__utils.__utils import (check_discrete_parameter,
+                               check_physical_param,
+                               check_shape,
+                               fprint,
+                               frobenius_inner)
 from .__propagators import (phonon_propagator,
                             electron_propagator_lattice,
                             electron_propagator_single_site)

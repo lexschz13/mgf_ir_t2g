@@ -1,24 +1,29 @@
 import numpy as np
+from numpy.typing import NDArray
 from scipy.interpolate import RegularGridInterpolator
+from ..__utils.__utils import axes_push, axes_pull
+
+
+from collections.abc import Iterable
 
 
 
-
-
-
-def interpBZ(f: np.ndarray, kdim: int = 3, superdomain: int = 1, gamma: str = "bl", method: int = "cubic") -> callable:
+def interpBZ(f: np.ndarray, kdim: int = 3, axes: int | Iterable[int] = (-3,-2,-1),
+             superdomain: int = 1, gamma: str = "bl", method: int = "cubic") -> callable:
     """
-    
+    Interpolates an array which defines a function on a reciprocal space grid.
 
     Parameters
     ----------
     f : np.ndarray
         Function to interpolate.
-        It is assumed that k-dimensions are the lasts.
     kdim : int, optional
         Dimension of reciprocal space.
         Greater than 0.
         The default is 3.
+    axes : int | Iterable[int]
+        Axes where k-dimensions are encoded.
+        The default is (-3,-2,-1).
     superdomain : int, optional
         Number of cells expanden at every direction to simulate periodicity.
         It must be odd, so it is corrected with -1 if it is even.
@@ -41,6 +46,7 @@ def interpBZ(f: np.ndarray, kdim: int = 3, superdomain: int = 1, gamma: str = "b
     """
     if kdim < 1:
         raise ValueError("Dimension of reciprocal space must be positive and non-zero")
+    f = axes_push(f, axes)
     struct_shape = f.shape[:-kdim]
     k_shape = f.shape[-kdim:]
     if gamma == "bl":
@@ -63,28 +69,50 @@ def interpBZ(f: np.ndarray, kdim: int = 3, superdomain: int = 1, gamma: str = "b
     
     interp = RegularGridInterpolator(ex, expanded_f, method=method)
     
-    def func(*x):
-        if np.all([isinstance(xi, (int,float)) for xi in x]):
+    def func(*k: int | float | NDArray[int] | NDArray[float],
+             axes: int | Iterable[int] = -1) -> NDArray:
+        """
+        Interpolated function.
+
+        Parameters
+        ----------
+        *x : int | float | NDArray[int] | NDArray[float]
+            Lists of coordinates of evaluation points on k-space.
+        axes : int | Iterable[int], optional
+            Axes where k-dims must be returned.
+            The default is -1.
+
+        Returns
+        -------
+        NDArray
+            Evaluated function.
+
+        """
+        if np.all([isinstance(xi, (int,float)) for xi in k]):
             raise TypeError("All coordinate list must be scalar or array")
-        if len(x) != kdim:
+        if len(k) != kdim:
             raise TypeError("Expected %i arguments" % kdim)
-        points = np.array(x)//2
+        points = np.array(k)//2
         if gamma=='c':
             points -= 1
-        if np.all([isinstance(xi, (int,float)) for xi in x]):
-            points = np.array(x)
+        if np.all([isinstance(xi, (int,float)) for xi in k]):
+            points = np.array(k)
             f_int = interp(points)
             return f_int[0] * np.max(np.abs(f))
         else:
-            dims = [xi.ndim if isinstance(xi, np.ndarray) else 0 for xi in x]
-            reference_shape = x[dims.index(np.max(dims))].shape
+            dims = [xi.ndim if isinstance(xi, np.ndarray) else 0 for xi in k]
+            reference_shape = k[dims.index(np.max(dims))].shape
             try:
-                x = [xi*np.ones(reference_shape) for xi in x] # Correct shape
+                k = [xi*np.ones(reference_shape) for xi in k] # Correct shape
             except ValueError:
                 raise ValueError("Some shapes cannot be broadcasted.")
-            points = np.array(x)
+            points = np.array(k)
             points = np.transpose(points, tuple([i for i in range(1,points.ndim)]) + (0,))
             f_int = interp(points)
-            return np.transpose(f_int, [i for i in range(-len(struct_shape),0)] + [i for i in range(points.ndim-1)]) * np.max(np.abs(f))
+            # This reorder k-dims to end and then these are pulled to desired axes
+            return axes_pull(np.transpose(f_int,
+                                          [i for i in range(-len(struct_shape),0)]
+                                          + [i for i in range(points.ndim-1)]) * np.max(np.abs(f)),
+                             axes)
     
     return func

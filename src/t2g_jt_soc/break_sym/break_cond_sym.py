@@ -1,12 +1,20 @@
+from __future__ import annotations
+
 import numpy as np
+from numpy.typing import NDArray
 from ..sym_matrix import matrixevaluate, matrixfit
 from ..k_space import k_convolution
 from ..analytical_continuation import boson_continuation, hilbert_ir
 from .__matrices import ax,ay,az,Lx,Ly,Lz,pauli_cross
 
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..dyson import DysonSolver
 
-def GD2h(dy_solver, angle, mode='t'):
+
+
+def GD2h(dy_solver: DysonSolver, angle: float, mode: str = 't') -> NDArray:
     """
     Takes a Green's function solved from a DysonSolver and applies symmetry breakings from a fixed distortion.
     These distortions correspond to JT eg modes repredented by Gell-Mann matrices 3 and 8.
@@ -27,6 +35,7 @@ def GD2h(dy_solver, angle, mode='t'):
     -------
     np.ndarray
         Matrix representation of distorted Green's function.
+        Matrix axes are the first two.
 
     """
     

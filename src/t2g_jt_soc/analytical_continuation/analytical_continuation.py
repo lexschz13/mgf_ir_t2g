@@ -2,8 +2,8 @@ import numpy as np
 from numpy.typing import NDArray
 from sparse_ir import FiniteTempBasis
 from scipy.integrate import quad_vec
-from .__utils import axis_push, axis_pull
-from.__continuation_solvers import _fermion_solvers, _boson_solvers, __quasi_inv
+from ..__utils.__utils import axis_push, axis_pull
+from .__continuation_solvers import _fermion_solvers, _boson_solvers, __quasi_inv
 
 
 
