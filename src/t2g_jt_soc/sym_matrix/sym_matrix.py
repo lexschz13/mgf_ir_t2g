@@ -34,7 +34,7 @@ class _AbstractMatrix(Generic[GeTy]):
             except:
                 raise TypeError
             
-            if np.all([type(c.flatten()[0].item()) in [int,float,complex] for c in _coefs]):
+            if np.all(isinstance(c.flatten()[0].item(), (int,float,complex)) for c in _coefs):
                 try:
                     _coefs = [c*np.ones_like(d) for i,c in enumerate(_coefs) for j,d in enumerate(_coefs) if i!=j]
                 except:

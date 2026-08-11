@@ -217,9 +217,9 @@ class DysonSolver:
         
         
         # Sparse basis
-        if type(irbf) != ir.FiniteTempBasis:
+        if not isinstance(irbf, ir.FiniteTempBasis):
             raise TypeError("irbf must be a fermionic basis")
-        if type(irbb) != ir.FiniteTempBasis:
+        if not isinstance(irbb, ir.FiniteTempBasis):
             raise TypeError("irbb must be a fermionic basis")
         if irbf.statistics != 'F':
             raise TypeError("irbf must be a fermionic basis")
@@ -284,7 +284,7 @@ class DysonSolver:
 
         """
         
-        if type(file) != str:
+        if not isinstance(file, str):
             raise TypeError("File name of data storage must be a string.")
         if file[-5:] != ".hdf5": file += ".hdf5"
         with h5py.File(file, "r") as fl:
@@ -314,7 +314,7 @@ class DysonSolver:
             if irbf in None:
                 self.__irbf = ir.FiniteTempBasis("F", fl["beta"][()], fl["wmax"][()])
             else:
-                if type(irbf) != ir.FiniteTempBasis:
+                if not isinstance(irbf, ir.FiniteTempBasis):
                     raise TypeError("irbf must be a fermionic basis")
                 if irbf.statistics != 'F':
                     raise TypeError("irbf must be a fermionic basis")
@@ -324,7 +324,7 @@ class DysonSolver:
             if irbf in None:
                 self.__irbb = ir.FiniteTempBasis("B", fl["beta"][()], fl["wmax"][()])
             else:
-                if type(irbb) != ir.FiniteTempBasis:
+                if not isinstance(irbb, ir.FiniteTempBasis):
                     raise TypeError("irbb must be a bosonic basis")
                 if irbb.statistics != 'B':
                     raise TypeError("irbb must be a bosonic basis")
@@ -765,7 +765,7 @@ class DysonSolver:
         if not self.__solved:
             print("Not solved yet, nothing to save")
             return
-        if type(sv_fl) != str:
+        if not isinstance(sv_fl, str):
             raise TypeError("File name of data storage must be a string.")
         if sv_fl[-5:] != ".hdf5": sv_fl += ".hdf5"
         with h5py.File(sv_fl, "w") as fl:

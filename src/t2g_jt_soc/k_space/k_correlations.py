@@ -35,7 +35,8 @@ def correl_BZ(dy_solver: DysonSolver) -> NDArray[RealScalar]:
 
     """
     
-    if type(dy_solver) != DysonSolver:
+    from ..dyson import DysonSolver
+    if not isinstance(dy_solver, DysonSolver):# type(dy_solver) != DysonSolver:
         raise TypeError("Correlations on irreducible BZ are computed from a Dyson solver")
     if not dy_solver.is_solved:
         print("No solution computed, no correlations available")
