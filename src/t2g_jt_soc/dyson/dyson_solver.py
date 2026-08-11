@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import numpy as np
 import sparse_ir as ir
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING
 from warnings import warn
 import h5py
 from ..sym_matrix import (ohmatrix,
@@ -26,6 +28,8 @@ from ..convergence import (implemented_conv,
 
 
 if TYPE_CHECKING:
+    from io import TextIOWrapper
+    from typing import Any, Iterable
     from numpy.typing import NDArray
     from sparse_ir import FiniteTempBasis, TauSampling, MatsubaraSampling
     from ..sym_matrix import OhMatrix
@@ -440,11 +444,11 @@ class DysonSolver:
     @property
     def seepiw(self) -> OhMatrix[NDArray[complex]]: return matrixevaluate(self.__smatf, self.seepl)
     @property
-    def sebl(self): return self.__sebl
+    def sebl(self) -> NDArray[RealScalar]: return self.__sebl
     @property
-    def sebtau(self): return self.__staub.evaluate(self.sebl)
+    def sebtau(self) -> NDArray[RealScalar]: return self.__staub.evaluate(self.sebl)
     @property
-    def sebiw(self): return self.__smatb.evaluate(self.sebl)
+    def sebiw(self) -> NDArray[complex]: return self.__smatb.evaluate(self.sebl)
     @property
     def glocl(self) -> OhMatrix[NDArray[RealScalar]]: return self.__glocl
     @property
@@ -464,62 +468,61 @@ class DysonSolver:
     @property
     def hybiw(self) -> OhMatrix[NDArray[complex]]: return matrixevaluate(self.smatf, self.hybl)
     @property
-    def dl(self): return self.__dl
+    def dl(self) -> NDArray[RealScalar]: return self.__dl
     @property
-    def dtau(self): return self.__staub.evaluate(self.dl)
+    def dtau(self) -> NDArray[RealScalar]: return self.__staub.evaluate(self.dl)
     @property
-    def diw(self): return self.__smatb.evaluate(self.dl)
+    def diw(self) -> NDArray[complex]: return self.__smatb.evaluate(self.dl)
     @property
-    def conv_ls(self): return self.__conv_ls
+    def conv_ls(self) -> list[float]: return self.__conv_ls
     @property
-    def is_solved(self):
-        return self.__solved
+    def is_solved(self) -> bool: return self.__solved
     # Energies
     @property
-    def ekin(self):
+    def ekin(self) -> float:
         gkbeta = matrixsum(self.irbf.u(self.beta)[:,None,None,None] * self.gkl, axis=0)
         return -matrixsum(gkbeta * self.Hlatt).trace / self.latt_size
     @property
-    def esoc(self):
+    def esoc(self) -> float:
         return -0.5*self.lbd*(matrixsum(self.irbf.u(self.beta)*self.glocl) * ohmatrix(0,1)).trace
     @property
-    def eeph(self):
+    def eeph(self) -> float:
         Fepl = matrixfit(self.smatf, self.glociw * self.seepiw).real
         Fepbeta = matrixsum(self.irbf.u(self.beta) * Fepl)
         return -Fepbeta.trace
     @property
-    def eint(self):
+    def eint(self) -> float:
         Feel = matrixfit(self.smatf, self.glociw * (self.sehf+self.se2biw)).real
         Feebeta = matrixsum(self.irbf.u(self.beta) * Feel)
         return -Feebeta.trace
     @property
-    def ephm(self):
+    def ephm(self) -> float:
         Fphml = matrixfit(self.smatf, matrixsum(self.gkiw*self.sephm[None,:,:,:], axis=(1,2,3))/self.latt_size).real
         return -matrixsum(Fphml * self.irbf.u(self.beta)).trace
     @property
-    def eche(self):
+    def eche(self) -> float:
         return -matrixsum(self.irbf.u(self.beta)*self.glocl).trace * self.mu
     @property
-    def ephn(self):
+    def ephn(self) -> float:
         return -2*np.sum(self.irbb.u(self.beta)*self.dl) * self.w0
     @property
-    def etot(self):
+    def etot(self) -> float:
         return self.ekin + self.esoc + self.eeph + self.eint + self.ephm + self.eche + self.ephn
     #Densities
     @property
-    def nexp(self):
+    def nexp(self) -> float:
         return -6 * np.sum(self.irbf.u(self.beta) * self.glocl.a)
     @property
-    def nph(self):
+    def nph(self) -> float:
         return -2*np.sum(self.irbf.u(self.beta)*self.dl) - self.__nph0
     @property
-    def varnel(self):
+    def varnel(self) -> float:
         gloc0 = matrixsum(self.irbf.u(0) * self.glocl)
         glocf = matrixsum(self.irbf.u(self.beta) * self.glocl)
         return np.sqrt(12*gloc0.a*glocf.a + 6*gloc0.b*glocf.b)
     #Correlators
     @property
-    def correlations(self):
+    def correlations(self) -> NDArray[float]:
         gloc0 = matrixsum(self.irbf.u(0) * self.glocl)
         glocf = matrixsum(self.irbf.u(self.beta) * self.glocl)
         return np.array([[gloc0.a*glocf.a, gloc0.a*glocf.b], [gloc0.b*glocf.a, gloc0.b*glocf.b]])
@@ -527,9 +530,12 @@ class DysonSolver:
     
     ######################################################################
     #Self-consistency updates
-    def __update_green(self, out_fl, tol=1e-6, delta=0.1, max_iter=10000):
+    def __update_green(self, out_fl: TextIOWrapper, tol: float=1e-6, max_iter: int = 10000) -> None:
         # Electronic Green's function updating
         # Chemical potential is adjusted
+        
+        if tol > 1e-5:
+            warn("Tolerance too big could provide a solition far from minimum")
         
         # Half-filling approximation for w->infty (only static components)
         self.__mu = (self.sehf + matrixsum(self.Hlatt+self.sephm, axis=(-1,-2,-3))/self.latt_size).trace.real/6
@@ -589,7 +595,7 @@ class DysonSolver:
         return
     
     
-    def __update_self_energy(self):
+    def __update_self_energy(self) -> None:
         # Self-energies update
         if self.g != 0: self.__sebl = seb(self.gloctau, self.g, self.staub)
         if self.U != 0: self.__sehf = sehf_ee(matrixsum(self.irbf.u(self.beta).reshape((self.irbf.size,) + (1,)*self.glocl.ndim-1) * self.glocl, axis=0),
@@ -601,14 +607,15 @@ class DysonSolver:
     
     ######################################################################
     #Self-consistency solve
-    def solve(self, conv_method=None, tol=5e-6, mutol=1e-6, maxiter=10000,
-              diis_mem=None):
+    def solve(self, conv_method: None | str = None, tol: float = 5e-6, mutol: float = 1e-6,
+              maxiter: int = 10000, mumaxiter: int = 10000, diis_mem: None | int = None) -> None:
         """
-        
+        Solving methond.
+        This uses second Bohr approximation.
 
         Parameters
         ----------
-        conv_method : (None, str), optional
+        conv_method : None | str, optional
             Convergence acceleration method.
             If None no convergence acceleration method is executed.
             If correlation integrals and coupling constants are 0 it is set to None.
@@ -625,7 +632,7 @@ class DysonSolver:
             Maximum iterations of self-consistency.
             Greater than 0.
             The default is 10000.
-        diis_mem : (None, int), optional
+        diis_mem : None | int, optional
             DIIS memory truncation.
             Only considered if DIIS convergence method is chosen, then it must be an integer greater than 1.
             The default is None.
@@ -649,10 +656,16 @@ class DysonSolver:
                                      1e-15,
                                      text_type_error="Tolerance must be a number.",
                                      text_value_error="Minimum tolerance allowed is 1e-15 (machine precission).")
+        if tol > 1e-5:
+            warn("Tolerance too big could provide a solition far from minimum")
         maxiter = check_discrete_parameter(maxiter,
                                            1,
                                            text_type_error="Maximum iterations must be an integer.",
                                            text_value_error="No allowed 0 or negative maximum iterations.")
+        mumaxiter = check_discrete_parameter(mumaxiter,
+                                             1,
+                                             text_type_error="Maximum iterations must be an integer.",
+                                             text_value_error="No allowed 0 or negative maximum iterations.")
         
         if self.U == 0 and self.g==0 and self.Jphm==0:
             conv_method = None
@@ -688,7 +701,7 @@ class DysonSolver:
             fprint("diis_mem=%i" % (self.diis_mem), file=out_fl)
         fprint("-"*15+"\n", file=out_fl)
         fprint("Computing non-interactive Green's function", file=out_fl)
-        self.__update_green(out_fl)
+        self.__update_green(out_fl, maxiter=mumaxiter)
         fprint('\n'*2, file=out_fl)
         iterations = 0
         while True:
@@ -739,7 +752,7 @@ class DysonSolver:
     
     ######################################################################
     #File save
-    def save(self, sv_fl):
+    def save(self, sv_fl: str) -> None:
         """
         Save solver data in hdf5 file only if it is solved.
 

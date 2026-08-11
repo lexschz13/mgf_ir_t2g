@@ -1,26 +1,29 @@
+from __future__ import annotations
+
 import numpy as np
-from numpy.typing import NDArray
-from scipy.interpolate import RegularGridInterpolator
-from typing import Unpack
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 from ..__utils.__utils import axes_push, axes_pull
-from ..__utils.__new_types import RealScalar
-
-
-from collections.abc import Iterable
 
 
 
-def interpBZ(f: np.ndarray, kdim: int = 3, axes: int | Iterable[int] = (-3,-2,-1),
+if TYPE_CHECKING:
+    from typing import Iterable, Unpack, Callable
+    from numpy.typing import NDArray
+    from scipy.interpolate import RegularGridInterpolator
+    from ..__utils.__new_types import RealScalar
+
+
+
+def interpBZ(f: NDArray[RealScalar], kdim: int = 3, axes: int | Iterable[int] = (-3,-2,-1),
              superdomain: int = 1, gamma: str = "bl",
-             method: str = "cubic") -> Callable[Unpack[tuple[RealScalar,...]],NDArray[float]]:
+             method: str = "cubic") -> Callable[[Unpack[tuple[RealScalar,...]]],NDArray[float]]:
     """
     Interpolates an array which defines a function on a reciprocal space grid.
 
     Parameters
     ----------
-    f : np.ndarray
-        Function to interpolate.
+    f : NDArray[RealScalar]
+        Data to interpolate.
     kdim : int, optional
         Dimension of reciprocal space.
         Greater than 0.
@@ -75,14 +78,14 @@ def interpBZ(f: np.ndarray, kdim: int = 3, axes: int | Iterable[int] = (-3,-2,-1
     
     interp = RegularGridInterpolator(ex, expanded_f, method=method)
     
-    def func(*k: int | float | NDArray[int] | NDArray[float],
-             axes: int | Iterable[int] = -1) -> NDArray:
+    def func(*k: RealScalar | NDArray[RealScalar],
+             axes: int | Iterable[int] = -1) -> NDArray[float]:
         """
         Interpolated function.
 
         Parameters
         ----------
-        *x : int | float | NDArray[int] | NDArray[float]
+        *x : RealScalar | NDArray[RealScalar]
             Lists of coordinates of evaluation points on k-space.
         axes : int | Iterable[int], optional
             Axes where k-dims must be returned.
@@ -90,7 +93,7 @@ def interpBZ(f: np.ndarray, kdim: int = 3, axes: int | Iterable[int] = (-3,-2,-1
 
         Returns
         -------
-        NDArray
+        NDArray[float]
             Evaluated function.
 
         """

@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import numpy as np
-from numpy.typing import NDArray
-from ..__utils.__new_types import Scalar, ArrayKey
+from typing import TYPE_CHECKING, TypeVar, Generic
 from ..__utils.__matrices import I,V
 
-from typing import Any, Self, Iterable, TypeVar, Generic
+
+if TYPE_CHECKING:
+    from typing import Any, Self, Iterable
+    from numpy.typing import NDArray
+    from ..__utils.__new_types import Scalar, ArrayKey
 
 GeTy = TypeVar("GeTy") # Allows classes have typing parameters
 
@@ -276,7 +281,7 @@ class _AbstractMatrix(Generic[GeTy]):
         else:
             raise NotImplementedError
     
-    def __array_ufunc__(self, ufunc: callable, method: str, *inputs: Any, **kwargs: Any) -> Self:
+    def __array_ufunc__(self, ufunc: np.ufunc, method: str, *inputs: Any, **kwargs: Any) -> Self:
         return self
     
     def __repr__(self) -> str:
@@ -284,7 +289,7 @@ class _AbstractMatrix(Generic[GeTy]):
 
 
 
-class OhMatrix(_AbstractMatrix, Generic[GeTy]):
+class OhMatrix(_AbstractMatrix[GeTy]):
     def __init__(self, a: Scalar | NDArray[Scalar], b: Scalar | NDArray[Scalar]) -> None:
         """
         Two coeffitient representation for matrices representing orbital-spin systems conserved under Oh symmetries.
@@ -359,7 +364,7 @@ class OhMatrix(_AbstractMatrix, Generic[GeTy]):
     
     #######################################################
     #Magic methods
-    def __add__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
+    def __add__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return ohmatrix(self.a+other.a, self.b+other.b)
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -367,7 +372,7 @@ class OhMatrix(_AbstractMatrix, Generic[GeTy]):
         else:
             raise TypeError
     
-    def __sub__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
+    def __sub__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return ohmatrix(self.a-other.a, self.b-other.b)
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -375,7 +380,7 @@ class OhMatrix(_AbstractMatrix, Generic[GeTy]):
         else:
             raise TypeError
     
-    def __rsub__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
+    def __rsub__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return ohmatrix(-self.a+other.a, -self.b+other.b)
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -383,7 +388,7 @@ class OhMatrix(_AbstractMatrix, Generic[GeTy]):
         else:
             raise TypeError
     
-    def __mul__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
+    def __mul__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return ohmatrix(self.a*other.a + 2*self.b*other.b, self.b*other.a + (self.a+self.b)*other.b)
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -391,7 +396,7 @@ class OhMatrix(_AbstractMatrix, Generic[GeTy]):
         else:
             raise TypeError
     
-    def __truediv__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
+    def __truediv__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return self * other**-1
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -399,7 +404,7 @@ class OhMatrix(_AbstractMatrix, Generic[GeTy]):
         else:
             raise TypeError
     
-    def __rtruediv__(self, other: _AbstractMatrix | Scalar | NDArray[Scalar]) -> Self:
+    def __rtruediv__(self, other: Self | Scalar | NDArray[Scalar]) -> Self:
         if isinstance(other, OhMatrix):
             return self.inv() * other
         elif isinstance(other, (int,float,complex,np.ndarray)):
@@ -407,7 +412,7 @@ class OhMatrix(_AbstractMatrix, Generic[GeTy]):
         else:
             raise TypeError
     
-    def __array_ufunc__(self, ufunc: callable, method: str, *inputs: Any, **kwargs: Any)-> Self:
+    def __array_ufunc__(self, ufunc: np.ufunc, method: str, *inputs: Any, **kwargs: Any)-> Self:
         if ufunc.nin == 1:
             return self._apply_func(ufunc)
         if ufunc in [np.add, np.subtract]:
@@ -429,16 +434,16 @@ class OhMatrix(_AbstractMatrix, Generic[GeTy]):
 
 # Constructors
 
-def ohmatrix(a, b):
+def ohmatrix(a: Scalar | NDArray[Scalar], b: Scalar | NDArray[Scalar]) -> OhMatrix:
     """
     Two coeffitient representation for matrices representing orbital-spin systems conserved under Oh symmetries. 
     Basic constructor function
 
     Parameters
     ----------
-    a : int,float,complex,np.ndarray[int,float,complex]
+    a : Scalar | NDArray[Scalar]
         Identity coefficient.
-    b : int,float,complex,np.ndarray[int,float,complex]
+    b : Scalar | NDArray[Scalar]
         SOC coefficient.
     
     Returns
@@ -449,7 +454,7 @@ def ohmatrix(a, b):
     return OhMatrix(a,b)
 
 
-def ohidentity(shape=None):
+def ohidentity(shape: None | Iterable[int] = None) -> OhMatrix:
     """
     Makes an OhMatrix that is an identity
 
@@ -470,9 +475,9 @@ def ohidentity(shape=None):
         return OhMatrix(np.ones(shape),0)
 
 
-def ohzeros(shape):
+def ohzeros(shape: None | Iterable[int] = None) -> OhMatrix:
     """
-    Makes an array of zero OhMatrix.
+    Makes an OhMatrix that is an identity
 
     Parameters
     ----------
@@ -491,13 +496,15 @@ def ohzeros(shape):
         return OhMatrix(np.zeros(shape), np.zeros(shape))
 
 
-def ohrandom(shape):
+def ohrandom(shape: None | Iterable[int] = None) -> OhMatrix:
     """
-    Makes a random array of OhMatrix.
+    Makes an OhMatrix that is an identity
 
     Parameters
     ----------
-    shape : iterable
+    shape : iterable,None
+        If None returns scarlar.
+        Defailt is None.
     
     Returns
     -------

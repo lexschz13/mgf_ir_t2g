@@ -1,24 +1,29 @@
+from __future__ import annotations
+
 import numpy as np
+from typing import TYPE_CHECKING
 from ..__utils.__utils import handle_mem_error, axes_push
 
-from collections.abc import Iterable
+if TYPE_CHECKING:
+    from typing import Iterable
+    from numpy.typing import NDArray
 
 
 
 
 
-def k_convolution(gk: np.ndarray, fk: np.ndarray, kdim: int = 3,
+def k_convolution(gk: NDArray, fk: NDArray, kdim: int = 3,
                   g_axes: int | Iterable[int] = -1, f_axes: int | Iterable[int] = -1,
-                  einidxs: None | str = None) -> np.ndarray:
+                  einidxs: None | str = None) -> NDArray:
     """
     Uses fast fourier transform (integrated on numpy) to perform convolutions on k-space.
 
     Parameters
     ----------
-    gk : np.ndarray
+    gk : NDArray
         Function to convolve.
         It is assumed that k dimensions are de lasts.
-    fk : np.ndarray
+    fk : NDArray
         Function to convolve.
         It is assumed that k dimensions are de lasts.
     kdim : int, optional
@@ -38,7 +43,7 @@ def k_convolution(gk: np.ndarray, fk: np.ndarray, kdim: int = 3,
 
     Returns
     -------
-    hk : np.ndarray
+    hk : NDArray
         Convolved function.
         Axes aren't pull, all k-axes are on last dimensions.
 

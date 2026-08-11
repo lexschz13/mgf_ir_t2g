@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from warnings import warn
 from typing import TYPE_CHECKING
@@ -5,7 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-    from collections.abc import Callable
+    from typing import Callable
     from ..sym_matrix.sym_matrix import _AbstractMatrix
     from ..__utils.__new_types import Scalar
 

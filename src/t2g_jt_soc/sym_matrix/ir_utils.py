@@ -1,8 +1,13 @@
-from sparse_ir import MatsubaraSampling, TauSampling
-Sampling = MatsubaraSampling | TauSampling
-from .sym_matrix import _constructor_dict, _AbstractMatrix
+from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
+import sparse_ir as ir
+from .sym_matrix import _constructor_dict
+
+if TYPE_CHECKING:
+    from typing import Any
+    from .sym_matrix import _AbstractMatrix
+    from ..__utils.__new_types import Sampling
 
 
 def matrixfit(sampling: Sampling, M: _AbstractMatrix, **kwargs: Any) -> _AbstractMatrix:
@@ -25,7 +30,7 @@ def matrixfit(sampling: Sampling, M: _AbstractMatrix, **kwargs: Any) -> _Abstrac
     
     if not isinstance(M, _AbstractMatrix):
         raise TypeError("Object to fit must be a symmetric matrix.")
-    if not isinstance(sampling, (MatsubaraSampling, TauSampling)):
+    if not isinstance(sampling, (ir.MatsubaraSampling, ir.TauSampling)):
         raise TypeError("Sampling must be a sampling objetc from sparse_ir.")
     return _constructor_dict[type(M)](*[sampling.fit(c, **kwargs) for c in M.coefs])
 
@@ -49,6 +54,6 @@ def matrixevaluate(sampling: Sampling, M: _AbstractMatrix, **kwargs: Any) -> _Ab
     
     if not isinstance(M, _AbstractMatrix):
         raise TypeError("Object to evaluate must be a symmetric matrix.")
-    if not isinstance(sampling, (MatsubaraSampling, TauSampling)):
+    if not isinstance(sampling, (ir.MatsubaraSampling, ir.TauSampling)):
         raise TypeError("Sampling must be a sampling objetc from sparse_ir.")
     return _constructor_dict[type(M)](*[sampling.evaluate(c, **kwargs) for c in M.coefs])

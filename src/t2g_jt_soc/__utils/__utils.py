@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import numpy as np
-from numpy.typing import NDArray
-from typing import Any, TYPE_CHECKING
-from collections.abc import Iterable
-from io import TextIOWrapper
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from typing import Any, Iterable
+    from io import TextIOWrapper
     from sparse_ir import FiniteTempBasis, TauSampling, MatsubaraSampling
     from ..sym_matrix.sym_matrix import _AbstractMatrix
     from .__new_types import Scalar, RealScalar

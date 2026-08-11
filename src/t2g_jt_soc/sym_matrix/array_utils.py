@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import numpy as np
-from .sym_matrix import _constructor_dict, _AbstractMatrix
+from typing import TYPE_CHECKING
+from .sym_matrix import _constructor_dict
 
-from typing import Any
+
+if TYPE_CHECKING:
+    from typing import Any
+    from .sym_matrix import _AbstractMatrix
 
 
 

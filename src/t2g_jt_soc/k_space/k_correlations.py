@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
     from ..dyson import DysonSolver
+    from ..__utils.__new_types import RealScalar
 
 
 
-def correl_BZ(dy_solver: DysonSolver) -> np.ndarray:
+def correl_BZ(dy_solver: DysonSolver) -> NDArray[RealScalar]:
     """
     Computes basic meafield correlations on k-space of a solve DysonSolver.
 
@@ -23,7 +25,7 @@ def correl_BZ(dy_solver: DysonSolver) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray
+    NDArray[RealScalar]
         Array with shape (2,2,...).
         [0,0,...] <gk.a(0) gk.a(beta)>
         [0,1,...] <gk.a(0) gk.b(beta)>
