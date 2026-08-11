@@ -1,5 +1,7 @@
 import numpy as np
 import sparse_ir as ir
+from typing import TYPE_CHECKING, Any, Iterable
+from warnings import warn
 import h5py
 from ..sym_matrix import (ohmatrix,
                           ohzeros,
@@ -7,9 +9,6 @@ from ..sym_matrix import (ohmatrix,
                           matrixevaluate,
                           matrixsum,
                           matrixcopy)
-# from ..sym_matrix.sym_matrix import ohmatrix, ohzeros
-# from ..sym_matrix.ir_utils import matrixfit, matrixevaluate
-# from ..sym_matrix.array_utils import matrixcopy, matrixsum
 from ..__utils.__utils import (check_discrete_parameter,
                                check_physical_param,
                                check_shape,
@@ -26,9 +25,16 @@ from ..convergence import (implemented_conv,
                            diis)
 
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from sparse_ir import FiniteTempBasis, TauSampling, MatsubaraSampling
+    from ..sym_matrix import OhMatrix
+    from ..__utils.__new_types import RealScalar
+
+
 
 class DysonSolver:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
         From a set of parameters solves self-consistent Dyson equation for Oh symmetric system with SOC and dynamic JT.
         This can be initialized with parameters setting at zero all Green's functions and self energies, prepared to solved and saved.
@@ -41,32 +47,32 @@ class DysonSolver:
             Fermionic basis from package sparse_ir.
         irbb : FiniteTempBasis
             Bosonic basis from package sparse_ir.
-        N : (int, float)
+        N : RealScalar
             Desired particle density, from 0 to 6.
             This solver works with secodn Bohr approximations, for stability interval 1 to 5 is recomended.
-        t : (int, float)
+        t : RealScalar
             Hopping amplitude.
             Greater-equal than zero.
             If t=0 only local Green's function is computed.
-        U : (int, float)
+        U : RealScalar
             Direct correlation integral.
             Greater-equal than zero.
-        J : (int, float)
+        J : RealScalar
             Exchange integral.
             Greater-equal than U.
-        Jphm : (int, flaot)
+        Jphm : RealScalar
             Cooperative JTE exchange integral.
             Greater-equal than zero.
-        w0 : (int, float)
+        w0 : RealScalar
             Phonon natural frequency.
             Greater-equal than zero.
-        g : (int, float)
+        g : RealScalar
             Phonon-electron coupling.
             Greater-equal than zero.
-        lbd : (int, float)
+        lbd : RealScalar
             SOC amplitude.
             Greater-equal than zero.
-        latt_shape : (int, iterable(int))
+        latt_shape : int | Iterable[int]
             Lattice shape.
         fl_out : str, optional
             Output file.
@@ -76,12 +82,12 @@ class DysonSolver:
         ----------
         file : str
             File name.
-        irbf : (None,FiniteTempBasis), optional
+        irbf : None | FiniteTempBasis, optional
             Fermionic basis from package sparse_ir.
             If None a new basis is initialized from file medtadata.
             Basis metadata must coincide with fiel metadata.
             The default is None.
-        irbb : (None,FiniteTempBasis), optional
+        irbb : None | FiniteTempBasis, optional
             Fermionic basis from package sparse_ir.
             If None a new basis is initialized from file medtadata.
             Basis metadata must coincide with fiel metadata.
@@ -99,7 +105,10 @@ class DysonSolver:
     
     ######################################################################
     #Initializers
-    def __solver_init(self, irbf, irbb, N, t, U, J, Jphm, w0, g, lbd, latt_shape, fl_out="t2g_soc_jtpol.out"):
+    def __solver_init(self, irbf: FiniteTempBasis, irbb: FiniteTempBasis, N: RealScalar,
+                      t: RealScalar, U: RealScalar, J: RealScalar, Jphm: RealScalar,
+                      w0: RealScalar, g: RealScalar, lbd: RealScalar,
+                      latt_shape: int | Iterable[int], fl_out: str = "t2g_soc_jtpol.out") -> None:
         """
         Unsolved initialization mode.
 
@@ -109,38 +118,39 @@ class DysonSolver:
             Fermionic basis from package sparse_ir.
         irbb : FiniteTempBasis
             Bosonic basis from package sparse_ir.
-        N : (int, float)
+        N : RealScalar
             Desired particle density, from 0 to 6.
             This solver works with secodn Bohr approximations, for stability interval 1 to 5 is recomended.
-        t : (int, float)
+        t : RealScalar
             Hopping amplitude.
             Greater-equal than zero.
             If t=0 only local Green's function is computed.
-        U : (int, float)
+        U : RealScalar
             Direct correlation integral.
             Greater-equal than zero.
-        J : (int, float)
+        J : RealScalar
             Exchange integral.
             Greater-equal than U.
-        Jphm : (int, flaot)
+        Jphm : RealScalar
             Cooperative JTE exchange integral.
             Greater-equal than zero.
-        w0 : (int, float)
+        w0 : RealScalar
             Phonon natural frequency.
             Greater-equal than zero.
-        g : (int, float)
+        g : RealScalar
             Phonon-electron coupling.
             Greater-equal than zero.
-        lbd : (int, float)
+        lbd : RealScalar
             SOC amplitude.
             Greater-equal than zero.
-        latt_shape : (int, iterable(int))
+        latt_shape : int | Iterable[int]
             Lattice shape.
         fl_out : str, optional
             Output file.
             The default is "t2g_soc_jtpol.out".
 
         """
+        
         # self.__T = check_physical_param(T, #Temperaturre in K
         #                                 0,
         #                                 text_type_error="Temperature must be a number",
@@ -155,6 +165,9 @@ class DysonSolver:
                                         6,
                                         text_type_error="Particle density must be a number.",
                                         text_value_error=r"Particle density of a $t_{2g}$ shell goes from 0 to 6.")  
+        if N<1 or N>5:
+            warn("Particle density too beyond to half-filling could raise numerical errors because only second Bohr approximation implemented",
+                 UserWarning)
         self.__t = check_physical_param(t, #Kinetic integral
                                         0,
                                         text_type_error="Kinetic integral must be a number.",
@@ -192,7 +205,7 @@ class DysonSolver:
         #                                            text_value_error="Memory for DIIS extrapolation must be a number",
         #                                            text_type_error="Memory for DIIS extrapolation must be an integer bigger than 1") 
         
-        self.__fl_out = fl_out
+        self.__fl_out = fl_out if fl_out[-4:]==".out" else fl_out+".out"
         
         # Kinetic term
         ky,kx,kz = np.meshgrid(*tuple(np.arange(0,2*np.pi,2*np.pi/latt_shape[i]) for i in [1,0,2]))
@@ -245,7 +258,8 @@ class DysonSolver:
         
         return
     
-    def __solver_load(self, file, irbf=None, irbb=None):
+    def __solver_load(self, file: str, irbf: None | FiniteTempBasis = None,
+                      irbb: None | FiniteTempBasis = None):
         """
         DysonSolver loader from file.
 
@@ -253,12 +267,12 @@ class DysonSolver:
         ----------
         file : str
             File name.
-        irbf : (None,FiniteTempBasis), optional
+        irbf : None | FiniteTempBasis, optional
             Fermionic basis from package sparse_ir.
             If None a new basis is initialized from file medtadata.
             Basis metadata must coincide with fiel metadata.
             The default is None.
-        irbb : (None,FiniteTempBasis), optional
+        irbb : None | FiniteTempBasis, optional
             Fermionic basis from package sparse_ir.
             If None a new basis is initialized from file medtadata.
             Basis metadata must coincide with fiel metadata.
@@ -273,6 +287,9 @@ class DysonSolver:
             # self.__T = fl["T"][()]
             # self.__wM = fl["wmax"][()]
             self.__N = fl["N"][()]
+            if self.__N<1 or self.__N>5:
+                warn("Particle density too beyond to half-filling could raise numerical errors because only second Bohr approximation implemented",
+                     UserWarning)
             self.__t = fl["t"][()]
             self.__U = fl["U"][()]
             self.__J = fl["J"][()]
@@ -357,71 +374,71 @@ class DysonSolver:
     #Properties
     
     @property
-    def T(self): return 11604.522110519543/self.beta
+    def T(self) -> float: return 11604.522110519543/self.beta
     @property
-    def beta(self): return self.irbf.beta
+    def beta(self) -> RealScalar: return self.irbf.beta
     @property
-    def wM(self): return self.irbf.wmax
+    def wM(self) -> RealScalar: return self.irbf.wmax
     @property
-    def N(self): return self.__N
+    def N(self) -> RealScalar: return self.__N
     @property
-    def t(self): return self.__t
+    def t(self) -> RealScalar: return self.__t
     @property
-    def U(self): return self.__U
+    def U(self) -> RealScalar: return self.__U
     @property
-    def Up(self): return self.__U - 2*self.__J
+    def Up(self) -> RealScalar: return self.__U - 2*self.__J
     @property
-    def J(self): return self.__J
+    def J(self) -> RealScalar: return self.__J
     @property
-    def Jphm(self): return self.__Jphm
+    def Jphm(self) -> RealScalar: return self.__Jphm
     @property
-    def w0(self): return self.__w0
+    def w0(self) -> RealScalar: return self.__w0
     @property
-    def g(self): return self.__g
+    def g(self) -> RealScalar: return self.__g
     @property
-    def lbd(self): return self.__lbd
+    def lbd(self) -> RealScalar: return self.__lbd
     @property
-    def latt_shape(self): return self.__latt_shape
+    def latt_shape(self) -> Iterable[int]: return self.__latt_shape
     @property
-    def latt_size(self): return np.prod(self.__latt_shape)
+    def latt_size(self) -> int: return np.prod(self.__latt_shape)
     @property
-    def diis_mem(self): return self.__diis_mem
+    def diis_mem(self) -> None | int: return self.__diis_mem
     @property
-    def Hlatt(self): return self.__Hlatt
+    def Hlatt(self) -> NDArray[float]: return self.__Hlatt
     @property
-    def irbf(self): return self.__irbf
+    def irbf(self) -> FiniteTempBasis: return self.__irbf
     @property
-    def smatf(self): return self.__smatf
+    def smatf(self) -> MatsubaraSampling: return self.__smatf
     @property
-    def stauf(self): return self.__stauf
+    def stauf(self) -> TauSampling: return self.__stauf
     @property
-    def freqf(self): return self.__freqf
+    def freqf(self) -> NDArray[complex]: return self.__freqf
     @property
-    def irbb(self): return self.__irbb
+    def irbb(self) -> FiniteTempBasis: return self.__irbb
     @property
-    def smatb(self): return self.__smatb
+    def smatb(self) -> MatsubaraSampling: return self.__smatb
     @property
-    def staub(self): return self.__staub
+    def staub(self) -> TauSampling: return self.__staub
     @property
-    def freqb(self): return self.__freqb
+    def freqb(self) -> NDArray[complex]: return self.__freqb
     @property
-    def mu(self): return self.__mu
+    def mu(self) -> RealScalar: return self.__mu
     @property
-    def sehf(self): return self.__sehf
+    def sehf(self) -> OhMatrix[RealScalar]: return self.__sehf
     @property
-    def sephm(self): return self.__sephm
+    def sephm(self) -> OhMatrix[NDArray[RealScalar]]: return self.__sephm
     @property
-    def se2bl(self): return self.__se2bl
+    def se2bl(self) -> OhMatrix[NDArray[RealScalar]]: return self.__se2bl
     @property
-    def se2btau(self): return matrixevaluate(self.__stauf, self.se2bl)
+    def se2btau(self) -> OhMatrix[NDArray[RealScalar]]: return matrixevaluate(self.__stauf, self.se2bl)
     @property
-    def se2biw(self): return matrixevaluate(self.__smatf, self.se2bl)
+    def se2biw(self) -> OhMatrix[NDArray[complex]]: return matrixevaluate(self.__smatf, self.se2bl)
     @property
-    def seepl(self): return self.__seepl
+    def seepl(self) -> OhMatrix[NDArray[RealScalar]]: return self.__seepl
     @property
-    def seeptau(self): return matrixevaluate(self.__stauf, self.seepl)
+    def seeptau(self) -> OhMatrix[NDArray[RealScalar]]: return matrixevaluate(self.__stauf, self.seepl)
     @property
-    def seepiw(self): return matrixevaluate(self.__smatf, self.seepl)
+    def seepiw(self) -> OhMatrix[NDArray[complex]]: return matrixevaluate(self.__smatf, self.seepl)
     @property
     def sebl(self): return self.__sebl
     @property
@@ -429,23 +446,23 @@ class DysonSolver:
     @property
     def sebiw(self): return self.__smatb.evaluate(self.sebl)
     @property
-    def glocl(self): return self.__glocl
+    def glocl(self) -> OhMatrix[NDArray[RealScalar]]: return self.__glocl
     @property
-    def gloctau(self): return matrixevaluate(self.__stauf, self.glocl)
+    def gloctau(self) -> OhMatrix[NDArray[RealScalar]]: return matrixevaluate(self.__stauf, self.glocl)
     @property
-    def glociw(self): return matrixevaluate(self.__smatf, self.glocl)
+    def glociw(self) -> OhMatrix[NDArray[complex]]: return matrixevaluate(self.__smatf, self.glocl)
     @property
-    def gkl(self): return self.__gkl
+    def gkl(self) -> OhMatrix[NDArray[RealScalar]]: return self.__gkl
     @property
-    def gktau(self): return matrixevaluate(self.__stauf, self.gkl, axis=0)
+    def gktau(self) -> OhMatrix[NDArray[RealScalar]]: return matrixevaluate(self.__stauf, self.gkl, axis=0)
     @property
-    def gkiw(self): return matrixevaluate(self.__smatf, self.gkl, axis=0)
+    def gkiw(self) -> OhMatrix[NDArray[complex]]: return matrixevaluate(self.__smatf, self.gkl, axis=0)
     @property
-    def hybl(self): return self.__hybl
+    def hybl(self) -> OhMatrix[NDArray[RealScalar]]: return self.__hybl
     @property
-    def hybtau(self): return matrixevaluate(self.stauf, self.hybl)
+    def hybtau(self) -> OhMatrix[NDArray[RealScalar]]: return matrixevaluate(self.stauf, self.hybl)
     @property
-    def hybiw(self): return matrixevaluate(self.smatf, self.hybl)
+    def hybiw(self) -> OhMatrix[NDArray[complex]]: return matrixevaluate(self.smatf, self.hybl)
     @property
     def dl(self): return self.__dl
     @property

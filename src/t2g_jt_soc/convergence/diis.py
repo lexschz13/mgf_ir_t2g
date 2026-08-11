@@ -1,15 +1,17 @@
 import numpy as np
 from warnings import warn
 from typing import TYPE_CHECKING
-from collections.abc import Callable
-from ..__utils.__new_types import Scalar
 
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from collections.abc import Callable
     from ..sym_matrix.sym_matrix import _AbstractMatrix
+    from ..__utils.__new_types import Scalar
 
 
-def diis(vec: _AbstractMatrix, err: _AbstractMatrix, inner: Callable[[_AbstractMatrix,_AbstractMatrix],Scalar],
+def diis(vec: _AbstractMatrix[NDArray[float]], err: _AbstractMatrix[NDArray[float]],
+         inner: Callable[[_AbstractMatrix,_AbstractMatrix],Scalar|NDArray[Scalar]],
          sum_op: Callable[[_AbstractMatrix | Scalar],_AbstractMatrix | Scalar] = np.sum,
          eps_reg: float = 1e-8) -> _AbstractMatrix:
     # Computation of direct inversion in the iterative subspace algorithm

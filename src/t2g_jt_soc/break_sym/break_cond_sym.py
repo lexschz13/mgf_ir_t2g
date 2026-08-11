@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import numpy as np
-from numpy.typing import NDArray
+from typing import TYPE_CHECKING
 from ..sym_matrix import matrixevaluate, matrixfit
 from ..k_space import k_convolution
 from ..analytical_continuation import boson_continuation, hilbert_ir
-from .__matrices import ax,ay,az,Lx,Ly,Lz,pauli_cross
-from ..__utils.__new_types import RealScalar
+from ..__utils.__matrices import ax,ay,az,Lx,Ly,Lz,pauli_cross
 
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
     from ..dyson import DysonSolver
+    from ..__utils.__new_types import RealScalar
 
 
 

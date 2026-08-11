@@ -7,7 +7,9 @@ from collections.abc import Iterable
 from io import TextIOWrapper
 
 if TYPE_CHECKING:
+    from sparse_ir import FiniteTempBasis, TauSampling, MatsubaraSampling
     from ..sym_matrix.sym_matrix import _AbstractMatrix
+    from .__new_types import Scalar, RealScalar
 
 
 
@@ -77,11 +79,11 @@ def axes_pull(array: NDArray, axes: int | Iterable[int]) -> NDArray:
 ###############################################################################
 # Check funcs
 
-def check_physical_param(p: int | float,
-                         minp: int | float = 0,
-                         maxp: int | float = np.inf,
+def check_physical_param(p: RealScalar,
+                         minp: RealScalar = 0,
+                         maxp: RealScalar = np.inf,
                          text_value_error: str = "",
-                         text_type_error: str = "") -> int | float:
+                         text_type_error: str = "") -> RealScalar:
     if not isinstance(p, (int,float)): raise TypeError(text_type_error)
     if p < minp or p > maxp: raise ValueError(text_value_error)
     
@@ -90,7 +92,7 @@ def check_physical_param(p: int | float,
 
 def check_discrete_parameter(p: int,
                              minp: int = 1,
-                             maxp: int | float = np.inf,
+                             maxp: RealScalar = np.inf,
                              text_value_error: str = "",
                              text_type_error: str = "") -> int:
     if not isinstance(p, int): raise TypeError(text_type_error)
@@ -99,18 +101,26 @@ def check_discrete_parameter(p: int,
     return p
 
 
-def check_shape(p: Iterable,
+def check_shape(p: int | Iterable[int],
                 l: int = 3,
                 text_value_error: str = "",
-                text_type_error: str = "") -> Iterable:
+                text_type_error: str = "") -> Iterable[int]:
     if isinstance(p, Iterable):
         if isinstance(p, np.ndarray): p = p.flatten()
+        if not np.all([isinstance(pi, int) for pi in p]): raise ValueError(text_value_error)
         if len(p)==l: pass
         elif len(p)==1: p *= l
         else: raise ValueError(text_value_error)
     elif isinstance(p, int): p = (p,)*l
     else: raise TypeError(text_type_error)
     return p
+
+
+def check_is_sampling_basis(irb: FiniteTempBasis, sam: TauSampling | MatsubaraSampling) -> None:
+    if not (irb.statistics == sam.basis.statistics and
+            irb.beta == sam.basis.beta and
+            irb.wmax == sam.basis.wmax):
+        raise ValueError("Sampling basis does not coincide with ir-basis.")
 
 ###############################################################################
 # Other
@@ -121,7 +131,7 @@ def fprint(string: str, file: TextIOWrapper, **kwargs: Any) -> None:
     print(string, file=file, **kwargs)
 
 
-def frobenius_inner(X: _AbstractMatrix, Y: _AbstractMatrix) -> float | complex | NDArray[float] | NDArray[complex]:
+def frobenius_inner(X: _AbstractMatrix, Y: _AbstractMatrix) -> Scalar | NDArray[Scalar]:
     return (X*Y).trace
 
 

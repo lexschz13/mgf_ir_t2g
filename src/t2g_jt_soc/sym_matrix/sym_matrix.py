@@ -1,13 +1,14 @@
 import numpy as np
 from numpy.typing import NDArray
 from ..__utils.__new_types import Scalar, ArrayKey
+from ..__utils.__matrices import I,V
 
-from typing import Any, Self, Iterable
+from typing import Any, Self, Iterable, TypeVar, Generic
+
+GeTy = TypeVar("GeTy") # Allows classes have typing parameters
 
 
-
-
-class _AbstractMatrix:
+class _AbstractMatrix(Generic[GeTy]):
     def __init__(self, *args: Scalar | NDArray[Scalar]) -> None:
         """
         Basic abstract class to construct symmetric matrices classes.
@@ -283,7 +284,7 @@ class _AbstractMatrix:
 
 
 
-class OhMatrix(_AbstractMatrix):
+class OhMatrix(_AbstractMatrix, Generic[GeTy]):
     def __init__(self, a: Scalar | NDArray[Scalar], b: Scalar | NDArray[Scalar]) -> None:
         """
         Two coeffitient representation for matrices representing orbital-spin systems conserved under Oh symmetries.
@@ -331,8 +332,7 @@ class OhMatrix(_AbstractMatrix):
         NDArray[Scalar]
 
         """
-        from ..break_sym.__matrices import I,V
-        if super()._is_array:
+        if self._is_array:
             return self.a[...,None,None]*I + self.b[...,None,None]*V
         else:
             return self.a*I + self.b*V

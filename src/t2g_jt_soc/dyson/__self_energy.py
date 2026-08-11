@@ -1,17 +1,23 @@
 import numpy as np
+from typing import TYPE_CHECKING
 from ..sym_matrix import ohmatrix, matrixfit
-# from ..sym_matrix.sym_matrix import ohmatrix
-# from ..sym_matrix.ir_utils import matrixfit
 from ..k_space import k_convolution
 
 
-def sehf_ee(gloc_beta, U, J):
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from sparse_ir import TauSampling
+    from ..sym_matrix import OhMatrix
+    from ..__utils.__new_types import RealScalar
+
+
+def sehf_ee(gloc_beta: RealScalar, U: RealScalar, J: RealScalar) -> OhMatrix:
     # Hartree-Fock diagrams of electronic correlations (Oh sym)
     sehf_a = -2*gloc_beta.a * (3*U - 5*J)
     sehf_b = gloc_beta.b * (U - 2*J)
     return ohmatrix(sehf_a, sehf_b)
 
-def sehf_phm(gkbeta, J):
+def sehf_phm(gkbeta: NDArray[float], J: RealScalar) -> OhMatrix:
     # Hartree-Fock diagrams of nearest-neighbour interaction to model Cooperative JTE (Oh sym)
     lattice_shape = gkbeta.shape
     lattice_size = gkbeta.size
@@ -30,8 +36,11 @@ def sehf_phm(gkbeta, J):
     
     # return sehf
 
-def se2b_ee(gloctau, U, J, stau):
+def se2b_ee(gloctau: OhMatrix, U: RealScalar, J: RealScalar, stau: TauSampling) -> OhMatrix:
     # Second-Bohr diagrams of electroonic correlations (Oh sym)
+    
+    if stau.basis.statistics != 'F':
+        raise TypeError("Sampling must be fermionic")
     
     se2btau_a = (
         (5*U**2 - 20*U*J + 28*J**2)*gloctau.a**2*gloctau.a[::-1]
@@ -46,12 +55,12 @@ def se2b_ee(gloctau, U, J, stau):
                  )
     return matrixfit(stau, ohmatrix(se2btau_a, se2btau_b))
 
-def seep(gloctau, dtau, g, stau):
+def seep(gloctau: OhMatrix, dtau: NDArray[float], g: RealScalar, stau: TauSampling) -> OhMatrix:
     # Migdal second order electron-phonon diagram
     seepftau = -g**2/3 * dtau * ohmatrix(4/3*gloctau.a, -2/3*gloctau.b)
     return matrixfit(stau, seepftau)
 
-def seb(gloctau, g, stau):
+def seb(gloctau: OhMatrix, g: RealScalar, stau: TauSampling) -> NDArray[float]:
     # Phonon self-energy from Eliashberg Theory
     ptau = -4*(gloctau.a*gloctau.a[::-1] - gloctau.b*gloctau.b[::-1]) * g**2 / 3
     return stau.fit(ptau)

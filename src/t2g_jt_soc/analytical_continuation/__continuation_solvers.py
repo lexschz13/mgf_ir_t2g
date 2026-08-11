@@ -1,11 +1,15 @@
 import numpy as np
-from numpy.typing import NDArray
-from sparse_ir import FiniteTempBasis
+from typing import TYPE_CHECKING
 from scipy.optimize import minimize
 from scipy.integrate import quad_vec, quad
 from warnings import warn
 from ..__utils.__utils import axis_pull, axis_push
-from ..__utils.__new_types import NDArray1D, RealScalar
+
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from sparse_ir import FiniteTempBasis
+    from ..__utils.__new_types import NDArray1D, RealScalar
 
 
 

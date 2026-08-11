@@ -1,11 +1,16 @@
 import numpy as np
-from numpy.typing import NDArray
-from sparse_ir import FiniteTempBasis
+from typing import TYPE_CHECKING
 from scipy.integrate import quad_vec
 from warnings import warn
 from ..__utils.__utils import axis_push, axis_pull
-from ..__utils.__new_types import RealScalar
 from .__continuation_solvers import _fermion_solvers, _boson_solvers, __quasi_inv
+
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from sparse_ir import FiniteTempBasis
+    from ..__utils.__new_types import RealScalar
+    
 
 
 
