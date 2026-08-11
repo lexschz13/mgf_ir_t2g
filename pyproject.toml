@@ -21,4 +21,4 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["t2g_jt_soc"]
+include = ["mgf_ir_t2g"]
