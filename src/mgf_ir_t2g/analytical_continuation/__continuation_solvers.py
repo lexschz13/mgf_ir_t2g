@@ -93,7 +93,7 @@ def __fermion_admm_l1_single(fl: NDArray1D[RealScalar], irb: FiniteTempBasis, al
         return irb.s*(irb.s*x+fl) + alpha*__quasi_sign(x)
     
     ubeta = irb.u(irb.beta)
-    vweight = quad_vec(lambda w: irb.v(w), -irb.wmax, irb.wmax)
+    vweight = quad_vec(lambda w: irb.v(w), -irb.wmax, irb.wmax)[0]
     
     sum_rule_constr = {"type": "eq",
                        "fun": lambda x: np.sum(vweight*x + ubeta*fl),
@@ -102,8 +102,8 @@ def __fermion_admm_l1_single(fl: NDArray1D[RealScalar], irb: FiniteTempBasis, al
     density_theta = lambda w,x: __quasi_heaviside(-np.sum(irb.v(w)*x))
     density_delta = lambda w,x: __quasi_delta(-np.sum(irb.v(w)*x))
     non_neg_constraint = {"type": "eq",
-                          "fun": lambda x: quad(lambda w: density_theta(w,x), -irb.wmax, irb.wmax),
-                          "jac": lambda x: quad_vec(lambda w: density_delta(w,x) - density_theta(w,x)*irb.v(w), -irb.wmax, irb.wmax)}
+                          "fun": lambda x: quad(lambda w: density_theta(w,x), -irb.wmax, irb.wmax)[0],
+                          "jac": lambda x: quad_vec(lambda w: density_delta(w,x) - density_theta(w,x)*irb.v(w), -irb.wmax, irb.wmax)[0]}
     
     if guess is None:
         guess = -np.sum(ubeta*fl) / np.sum(vweight) * np.ones(fl.size)
@@ -157,8 +157,8 @@ def __fermion_admm_l2_single(fl: NDArray1D[RealScalar], irb: FiniteTempBasis, al
     density_theta = lambda w,x: __quasi_heaviside(-np.sum(irb.v(w)*x))
     density_delta = lambda w,x: __quasi_delta(-np.sum(irb.v(w)*x))
     non_neg_constraint = {"type": "eq",
-                          "fun": lambda x: quad(lambda w: density_theta(w,x), -irb.wmax, irb.wmax),
-                          "jac": lambda x: quad_vec(lambda w: density_delta(w,x) - density_theta(w,x)*irb.v(w), -irb.wmax, irb.wmax)}
+                          "fun": lambda x: quad(lambda w: density_theta(w,x), -irb.wmax, irb.wmax)[0],
+                          "jac": lambda x: quad_vec(lambda w: density_delta(w,x) - density_theta(w,x)*irb.v(w), -irb.wmax, irb.wmax)[0]}
     
     if guess is None:
         guess = -np.sum(ubeta*fl) / np.sum(vweight) * np.ones(fl.size)
@@ -203,7 +203,7 @@ _fermion_solvers = {
 
 
 def __reg_kernel_ir(irb: FiniteTempBasis) -> NDArray[float]:
-    return quad_vec(lambda w: irb.s[:,None]*w*irb.v(w)[:,None]*irb.v(w)[None,:], -irb.wmax, irb.wmax)
+    return quad_vec(lambda w: irb.s[:,None]*w*irb.v(w)[:,None]*irb.v(w)[None,:], -irb.wmax, irb.wmax)[0]
 
 ###############################################################################
 # Bosonic optimizers
