@@ -203,7 +203,7 @@ _fermion_solvers = {
 
 
 def __reg_kernel_ir(irb: FiniteTempBasis) -> NDArray[float]:
-    return quad_vec(lambda w: w*irb.v(w)[:,None]*irb.v[None,:])
+    return quad_vec(lambda w: irb.s[:,None]*w*irb.v(w)[:,None]*irb.v(w)[None,:], -irb.wmax, irb.wmax)
 
 ###############################################################################
 # Bosonic optimizers
