@@ -743,7 +743,7 @@ def correct_magnetocurrent_from_file(h5fl, irbf=None, irbb=None, only_info=False
 
 
 def magneto_current_tzelong_from_file(h5fl, irbf=None, irbb=None, key="magnetocond_tz+", alpha=10**-1.1,
-                                      spin_vector=[1,1,1]):
+                                      spin_vector=[1,1,1], iso_break=True):
     beta = h5fl["beta"][()]
     wm = h5fl["wmax"][()]
     create_irbf = True
@@ -773,6 +773,6 @@ def magneto_current_tzelong_from_file(h5fl, irbf=None, irbb=None, key="magnetoco
     ejt = h5fl["eeph"][()]
     
     print("Computing magneto-optical conductivity")
-    magnetocond_ls = susc_mo(gkl, beta, t, np.pi, ejt, irbf, irbb, 't', alpha=alpha, spin_vector=spin_vector)
+    magnetocond_ls = susc_mo(gkl, beta, t, np.pi, ejt if iso_break else 0, irbf, irbb, 't', alpha=alpha, spin_vector=spin_vector)
     
     h5fl.create_dataset(key, data = magnetocond_ls)
