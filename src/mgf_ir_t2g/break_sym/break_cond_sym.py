@@ -10,6 +10,7 @@ from ..__utils.__matrices import ax,ay,az,Lx,Ly,Lz,pauli_cross
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+    from typing import Iterable
     from ..dyson import DysonSolver
     from ..__utils.__new_types import RealScalar
 
@@ -176,6 +177,7 @@ def Gspin_proj(dy_solver: DysonSolver, angle: RealScalar, jt_mode: str = 't') ->
 
 
 def conductivity_mo(dy_solver: DysonSolver, angle: RealScalar, jt_mode: str = 't', alpha: RealScalar = 10**-1.1,
+                    spin_vector: Iterable[int] = [1,1,1],
                     guess: None | NDArray[RealScalar] = None, solver: str = "lsql2") -> NDArray[complex]:
     """
     Takes a Green's function solved from a DysonSolver and, from a fixed distortion, computes the antisymmetric component of associeted conductivity tensor on ir-basis.
@@ -195,6 +197,9 @@ def conductivity_mo(dy_solver: DysonSolver, angle: RealScalar, jt_mode: str = 't
     alpha : RealScalar, optional
         See :func:"boson_continuation" documantetion.
         The default is 10**-1.1.
+    spin_vector : Iterable[int]
+        Modulation of spin fluctuation directions.
+        The default is [1,1,1].
     guess : None | NDArray[RealScalar], optional
         See :func:"boson_continuation" documantetion.
         The default is None.
@@ -243,9 +248,10 @@ def conductivity_mo(dy_solver: DysonSolver, angle: RealScalar, jt_mode: str = 't
     
     # Projection
     print("Computing dynamical projections")
-    _tmp1 = pauli_cross @ Gktau_jt[...,None,:,:] # (Gstruct,spin_axes,matrix,matrix)
+    pauli_cross_norm = np.asarray(spin_vector)[:,None] * pauli_cross
+    _tmp1 = pauli_cross_norm @ Gktau_jt[...,None,:,:] # (Gstruct,spin_axes,matrix,matrix)
     _tmp2 = np.trace(_tmp1 - _tmp1[::-1]) # (Gstruct,spin_axes)
-    psiktau = _tmp2 * pauli_cross # (Gstruct,spin_axes,matrix,matrix)
+    psiktau = _tmp2 * pauli_cross_norm # (Gstruct,spin_axes,matrix,matrix)
     del _tmp1, _tmp2
     
     # Current
