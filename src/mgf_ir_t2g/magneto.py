@@ -145,7 +145,7 @@ def Gspin_proj(Gkl, beta, t, angle, ejt, irbf, jt_mode, spin_vector=[1,1,1], get
     
     # Projection
     print("Computing dynamical projections")
-    pauli_cross_norm = np.asarray(spin_vector)[:,None] * pauli_cross
+    pauli_cross_norm = np.asarray(spin_vector)[:,None,None] * pauli_cross
     _tmp1 = np.einsum("aij,jk...->aik...", pauli_cross_norm, Gktau_jt, optimize=True)
     _tmp2 = np.einsum("aij...,aji...->a...", _tmp1, -_tmp1[:,:,:,::-1], optimize=True)
     psiktau = np.einsum("a...,aij->aij...", _tmp2, pauli_cross_norm, optimize=True)
@@ -217,7 +217,7 @@ def susc_mo(Gkl, beta, t, angle, ejt, irbf, irbb, jt_mode, alpha=10**-1.1,
     
     # Projection
     print("Computing dynamical projections")
-    pauli_cross_norm = np.asarray(spin_vector)[:,None] * pauli_cross
+    pauli_cross_norm = np.asarray(spin_vector)[:,None,None] * pauli_cross
     _tmp1 = np.einsum("aij,jk...->aik...", pauli_cross_norm, Gktau_jt, optimize=True)
     _tmp2 = np.einsum("aij...,aji...->a...", _tmp1, -_tmp1[:,:,:,::-1], optimize=True)
     psiktau = np.einsum("a...,aij->aij...", _tmp2, pauli_cross_norm, optimize=True)
