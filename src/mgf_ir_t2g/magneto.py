@@ -107,7 +107,7 @@ def GD2h(Gkl, angle, ejt, smat, mode='t'):
             )
 
 
-def Gspin_proj(Gkl, beta, t, angle, ejt, irbf, jt_mode, get_se=False):
+def Gspin_proj(Gkl, beta, t, angle, ejt, irbf, jt_mode, spin_vector=[1,1,1], get_se=False):
     stauf = ir.TauSampling(irbf)
     smatf = ir.MatsubaraSampling(irbf)
     # staub = ir.TauSampling(irbb)
@@ -145,9 +145,10 @@ def Gspin_proj(Gkl, beta, t, angle, ejt, irbf, jt_mode, get_se=False):
     
     # Projection
     print("Computing dynamical projections")
-    _tmp1 = np.einsum("aij,jk...->aik...", pauli_cross, Gktau_jt, optimize=True)
+    pauli_cross_norm = np.asarray(spin_vector)[:,None] * pauli_cross
+    _tmp1 = np.einsum("aij,jk...->aik...", pauli_cross_norm, Gktau_jt, optimize=True)
     _tmp2 = np.einsum("aij...,aji...->a...", _tmp1, -_tmp1[:,:,:,::-1], optimize=True)
-    psiktau = np.einsum("a...,aij->aij...", _tmp2, pauli_cross, optimize=True)
+    psiktau = np.einsum("a...,aij->aij...", _tmp2, pauli_cross_norm, optimize=True)
     del _tmp1, _tmp2
     # psiktau = np.einsum("aij,jk...,akl,li...,axy->axy...", pauli_cross, Gktau_jt, pauli_cross, -Gktau_jt[:,:,::-1], pauli_cross, optimize=True)
     # psikl = stauf.fit(psiktau, axis=3)
