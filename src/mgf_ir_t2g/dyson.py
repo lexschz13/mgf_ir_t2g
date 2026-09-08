@@ -304,20 +304,20 @@ class DysonSolver:
             DN = self.N-Nexp
             if abs(DN) <= tol:
                 return
-            etaiw = np.sum((self.glociw*self.glociw).trace) if self.__t == 0 else np.sum((self.gkiw * self.gkiw).trace, axis=(-1,-2,-3)) / self.k_sz**3
-            etal = self.smatf.fit(etaiw).real
-            etabeta = np.sum(self.irbf.u(self.beta) * etal) # d<n>/dmu
-            self.__mu += DN/etabeta
-            # if DN > 0:
-            #     if last_sign == -1:
-            #         delta /= 2
-            #     self.__mu += delta
-            #     last_sign = +1
-            # elif DN < 0:
-            #     if last_sign == +1:
-            #         delta /= 2
-            #     self.__mu -= delta
-            #     last_sign = -1
+            # etaiw = np.sum((self.glociw*self.glociw).trace) if self.__t == 0 else np.sum((self.gkiw * self.gkiw).trace, axis=(-1,-2,-3)) / self.k_sz**3
+            # etal = self.smatf.fit(etaiw).real
+            # etabeta = np.sum(self.irbf.u(self.beta) * etal) # d<n>/dmu
+            # self.__mu += DN/etabeta
+            if DN > 0:
+                if last_sign == -1:
+                    delta /= 2
+                self.__mu += delta
+                last_sign = +1
+            elif DN < 0:
+                if last_sign == +1:
+                    delta /= 2
+                self.__mu -= delta
+                last_sign = -1
     
     def __update_gb(self):
         d0iw =  (2*self.w0/(self.freqb**2 - self.w0**2)).real
