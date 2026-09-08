@@ -282,8 +282,8 @@ class DysonSolver:
     # Update functions
 
     def __update_green(self, out_fl, tol=1e-6, delta=0.1):
-        # self.__mu = np.sum((self.sehf + ohsum(self.irbf.u(self.beta)*(self.se2bl+2*self.seepl))).real.eigvals)/2 # Approximates near to half filling
-        self.__mu = (self.sehf + ohsum(self.Hlatt+self.sephm, axis=(-1,-2,-3))/self.k_sz**3).trace.real/6
+        self.__mu = np.sum((self.sehf + ohsum(self.irbf.u(self.beta)*(self.se2bl+2*self.seepl))).real.eigvals)/2 # Approximates near to half filling
+        # self.__mu = (self.sehf + ohsum(self.Hlatt+self.sephm, axis=(-1,-2,-3))/self.k_sz**3).trace.real/6
         last_sign = 0
         while True:
             fprint("Starting with mu=%.8f" % self.mu, out_fl)
