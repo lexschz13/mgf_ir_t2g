@@ -282,7 +282,8 @@ class DysonSolver:
     # Update functions
 
     def __update_green(self, out_fl, tol=1e-6, delta=0.1):
-        self.__mu = np.sum((self.sehf + ohsum(self.irbf.u(self.beta)*(self.se2bl+2*self.seepl))).real.eigvals)/2 # Approximates near to half filling
+        # self.__mu = np.sum((self.sehf + ohsum(self.irbf.u(self.beta)*(self.se2bl+2*self.seepl))).real.eigvals)/2 # Approximates near to half filling
+        self.__mu = (self.sehf + ohsum(self.Hlatt+self.sephm, axis=(-1,-2,-3))/self.k_sz**3).trace.real/6
         last_sign = 0
         while True:
             fprint("Starting with mu=%.8f" % self.mu, out_fl)
@@ -303,16 +304,20 @@ class DysonSolver:
             DN = self.N-Nexp
             if abs(DN) <= tol:
                 return
-            if DN > 0:
-                if last_sign == -1:
-                    delta /= 2
-                self.__mu += delta
-                last_sign = +1
-            elif DN < 0:
-                if last_sign == +1:
-                    delta /= 2
-                self.__mu -= delta
-                last_sign = -1
+            etaiw = np.sum((self.glociw*self.glociw).trace) if self.__t == 0 else np.sum((self.gkiw * self.gkiw).trace, axis=(-1,-2,-3)) / self.k_sz**3
+            etal = self.smatf.fit(etaiw).real
+            etabeta = np.sum(self.irbf.u(self.beta) * etal) # d<n>/dmu
+            self.__mu += DN/etabeta
+            # if DN > 0:
+            #     if last_sign == -1:
+            #         delta /= 2
+            #     self.__mu += delta
+            #     last_sign = +1
+            # elif DN < 0:
+            #     if last_sign == +1:
+            #         delta /= 2
+            #     self.__mu -= delta
+            #     last_sign = -1
     
     def __update_gb(self):
         d0iw =  (2*self.w0/(self.freqb**2 - self.w0**2)).real
@@ -447,7 +452,7 @@ class DysonSolver:
             fprint("iteration  %i finished with convergence %.8e" % (iterations, conv), file=out_fl)
             fprint('-'*15, file=out_fl)
             fprint('\n'*2, file=out_fl)
-            if conv <= tol:
+            if conv <= tol or (conv <= tol*relax_tol_factor and iterations>=relax_iter):
                 fprint("Finished", file=out_fl)
                 fprint("\n"*3, file=out_fl)
                 fprint("-"*15, file=out_fl)
@@ -458,9 +463,6 @@ class DysonSolver:
                 fprint("Reached max iterations", file=out_fl)
                 out_fl.close()
                 return
-            if iterations >= relax_iter:
-                conv *= relax_tol_factor
-                relax_tol_factor = 1
             check_loop = True
             if iterations >= 5:
                 for ii in range(1,5):
